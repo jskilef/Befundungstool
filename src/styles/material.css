@@ -1,7 +1,8 @@
 /* Material Design 3 layer. Loaded last; colour roles come from material-tokens.css (generated).
    Ported module CSS stays untouched: this file maps its shared variables to M3 roles and restyles
    components. Selectors use the :root[data-palette][data-theme] prefix (specificity 0,3,0) so they
-   reliably win over module rules. Offline by design: no web fonts or icon fonts are downloaded. */
+   reliably win over module rules. Offline by design: Roboto is embedded by the build (FONT_STYLES);
+   nothing is downloaded at runtime. */
 
 /* ---- Reference tokens ---- */
 :root{

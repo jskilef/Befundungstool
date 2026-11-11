@@ -29,7 +29,7 @@ Without an AI provider selected, the app makes no network requests.
 
 **Settings and appearance**
 - *Konfiguration speichern/laden*: one JSON file with macros, templates, favorites, preferences and AI settings. API keys are included only on request, and then the file is password-encrypted (AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations). Imports radnote configuration and macro files and Report Studio settings files (plain or encrypted). Report text is never part of a settings file.
-- Six themes: System, Studio Hell, Schiefer Dunkel, Mitternacht, Kobalt Hell, Kobalt Dunkel.
+- Material Design 3 interface with six themes: System, Studio Hell, Schiefer Dunkel, Mitternacht, Kobalt Hell, Kobalt Dunkel. The Roboto font is embedded, so the app looks the same offline.
 
 ## Data handling
 
@@ -52,4 +52,4 @@ Sources live in `src/` and are inlined into one HTML file by `scripts/build.cjs`
 
 ## License
 
-Project code is [MIT-licensed](LICENSE). Optional runtimes and model assets keep their own licenses and are downloaded separately: see [third-party notices](THIRD_PARTY_NOTICES.md) and [licenses/](licenses/). AI suggestions and builder text require clinical review; no clinical or regulatory certification is claimed.
+Project code is [MIT-licensed](LICENSE). The embedded Roboto font is under the [SIL Open Font License 1.1](licenses/Roboto-OFL.txt). Optional runtimes and model assets keep their own licenses and are downloaded separately: see [third-party notices](THIRD_PARTY_NOTICES.md) and [licenses/](licenses/). AI suggestions and builder text require clinical review; no clinical or regulatory certification is claimed.

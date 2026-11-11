@@ -12,8 +12,8 @@ Befundungstool's original code, documentation, templates, and project assets are
 provided under the [MIT License](LICENSE). Preserve the copyright notices and the
 license when sharing copies or substantial portions.
 
-The release ZIP contains the application, launcher, documentation, icons, and
-license documents. It contains no
+The release ZIP contains the application (with the embedded Roboto font, see
+below), launcher, documentation, icons, and license documents. It contains no
 third-party runtime implementation, model weights, Node.js executable, browser,
 or cloud-provider SDK. The launcher uses Node.js built-ins. Optional browser-local
 inference downloads third-party runtimes and model assets on demand; these are
@@ -92,6 +92,10 @@ of the included upstream license documents. No upstream license text is modified
 Experimental MedGemma text-only inference uses [Transformers.js 4.3.0](https://github.com/huggingface/transformers.js/tree/4.3.0), Apache-2.0; [upstream license](licenses/transformers-js-4.3.0-LICENSE.txt). MedGemma uses the third-party [geeek/medgemma-4b-it-ONNX](https://huggingface.co/geeek/medgemma-4b-it-ONNX) conversion of [google/medgemma-4b-it](https://huggingface.co/google/medgemma-4b-it), governed by the [Health AI Developer Foundations terms](https://developers.google.com/health-ai-developer-foundations/terms). It is not licensed under Befundungstool's MIT license. No weights are redistributed in this release. Users must review and comply with upstream terms before downloading or using them. Local model folders and compiled libraries remain separately supplied works.
 
 Custom local models are supplied by the user and retain their original licenses. Befundungstool does not redistribute or relicense their weights or compiled model libraries. The optional MedGemma 1.5 preset references [geeek/medgemma-1.5-4b-it-ONNX](https://huggingface.co/geeek/medgemma-1.5-4b-it-ONNX), based on [google/medgemma-1.5-4b-it](https://huggingface.co/google/medgemma-1.5-4b-it), under the applicable Health AI Developer Foundations terms.
+
+## Bundled font: Roboto
+
+The application embeds the Roboto variable font (Latin, Latin Extended and Greek subsets, as served by Google Fonts, Roboto v51) so that it renders identically offline. Copyright 2011 The Roboto Project Authors ([googlefonts/roboto-classic](https://github.com/googlefonts/roboto-classic)), licensed under the [SIL Open Font License 1.1](licenses/Roboto-OFL.txt). The font files are unmodified; their source URLs and SHA-256 hashes are recorded in [licenses/SOURCES.json](licenses/SOURCES.json). The OFL permits bundling with software; the font may not be sold on its own, and its license must accompany redistributions. This is the only third-party binary included in the release.
 
 ## Clinical terminology sources
 

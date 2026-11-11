@@ -1,7 +1,35 @@
 {
   "reviewedOn": "2026-10-05",
-  "scope": "License document provenance; no runtime binaries or model weights are bundled.",
+  "scope": "License document provenance. No runtime binaries or model weights are bundled, except the Roboto font files listed under bundled (embedded into the HTML by the build).",
+  "bundled": [
+    {
+      "file": "assets/fonts/roboto-latin.woff2",
+      "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2",
+      "sha256": "1404ca348bd75ef836f4dd8b6f2cc719458642d1237c368296b2fc652dca47dc",
+      "license": "licenses/Roboto-OFL.txt",
+      "retrievedOn": "2026-11-11"
+    },
+    {
+      "file": "assets/fonts/roboto-latin-ext.woff2",
+      "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3KUBGEe.woff2",
+      "sha256": "cedb374b05a35034cf96db185db4eeb8f8ce49e1a56197673702ff11b5533d6e",
+      "license": "licenses/Roboto-OFL.txt",
+      "retrievedOn": "2026-11-11"
+    },
+    {
+      "file": "assets/fonts/roboto-greek.woff2",
+      "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3-UBGEe.woff2",
+      "sha256": "97fbf7bd0b4579e632392a4f483acdae73cbf59ad90c1e5d2c5ec4044c377fce",
+      "license": "licenses/Roboto-OFL.txt",
+      "retrievedOn": "2026-11-11"
+    }
+  ],
   "files": [
+    {
+      "file": "licenses/Roboto-OFL.txt",
+      "url": "https://fonts.google.com/download/list?family=Roboto (OFL.txt)",
+      "sha256": "7d96701533d059cfd4191a85ecfd159e262527abd737eae6d9fb533844c70410"
+    },
     {
       "file": "licenses/web-llm-0.2.85-LICENSE.txt",
       "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/v0.2.85/LICENSE",
