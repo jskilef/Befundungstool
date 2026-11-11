@@ -27,8 +27,8 @@
   "files": [
     {
       "file": "licenses/Roboto-OFL.txt",
-      "url": "https://fonts.google.com/download/list?family=Roboto (OFL.txt)",
-      "sha256": "7d96701533d059cfd4191a85ecfd159e262527abd737eae6d9fb533844c70410"
+      "url": "https://fonts.google.com/download/list?family=Roboto (OFL.txt; line endings normalized to LF)",
+      "sha256": "061402327a96aadb0bfb694a960ed289ecd38d383e396243831ab81feb109c41"
     },
     {
       "file": "licenses/web-llm-0.2.85-LICENSE.txt",
