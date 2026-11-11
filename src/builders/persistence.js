@@ -1,0 +1,10 @@
+(function(root,factory){const node=typeof module==='object'&&module.exports;const api=factory(node?require('./registry.js'):root.ExaminationRegistry,node?require('./state.js'):root.BuilderState);if(node)module.exports=api;else root.BuilderPersistence=api})(globalThis,function(R,S){'use strict';
+ const key='radnote-builder-favorites-v1';
+ const empty=()=>Object.fromEntries(R.ids.map(id=>[id,[]]));
+ const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+ function valid(value){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(id=>!R.ids.includes(id)))return false;return R.ids.every(id=>{const list=value[id]||[];return Array.isArray(list)&&list.length<=100&&new Set(list.map(f=>f?.id)).size===list.length&&list.every(f=>{if(!f||typeof f.id!=='string'||!f.id||f.id.length>100||typeof f.name!=='string'||!f.name.trim()||f.name.length>80||!f.snapshot||typeof f.snapshot!=='object')return false;try{const cleaned=S.snapshot(id,{...S.empty(id),...f.snapshot});return JSON.stringify(canonical(f.snapshot))===JSON.stringify(canonical(cleaned))}catch(e){return false}})})}
+ function load(storage){try{const raw=JSON.parse(storage.getItem(key));return valid(raw)?{...empty(),...raw}:empty()}catch(e){return empty()}}
+ function save(storage,favorites){if(!valid(favorites))return false;try{storage.setItem(key,JSON.stringify(favorites));return true}catch(e){return false}}
+ function merge(current,incoming,newId){const result=S.clone({...empty(),...(current||{})});for(const id of R.ids){for(const value of incoming?.[id]||[]){const same=result[id].find(f=>f.id===value.id);if(same&&JSON.stringify(canonical(same))===JSON.stringify(canonical(value)))continue;const f=S.clone(value);if(same){do{f.id=newId()}while(result[id].some(v=>v.id===f.id))}result[id].push(f)}}if(!valid(result))throw Error('Configuration limit exceeded');return result}
+ return {key,empty,valid,load,save,merge};
+});

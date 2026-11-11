@@ -1,0 +1,20 @@
+/* Shared examination schema; the existing ExamComponents render these controls. */
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.BuilderSchema=api})(globalThis,function(){'use strict';
+ const options=values=>values.map(v=>Array.isArray(v)?v:[v,v]);
+ const field=(type,key,label,extra={})=>({type,key,label,...extra});
+ const select=(key,label,values,extra={})=>field('select',key,label,{options:options(values),...extra});
+ const multi=(key,label,values,extra={})=>field('multi',key,label,{options:options(values),...extra});
+ const number=(key,label,extra={})=>field('number',key,label,{min:0,max:10000,...extra});
+ const text=(key,label,extra={})=>field('text',key,label,{maxLength:500,...extra});
+ const bool=(key,label,extra={})=>field('bool',key,label,extra);
+ const list=(key,label,fields,extra={})=>field('list',key,label,{fields,maxItems:30,...extra});
+ const category=(id,label,fields,normalText,extra={})=>({id,label,fields,normalText,...extra});
+ const sides=[['right','Rechts'],['left','Links'],['bilateral','Beidseits']];
+ const severities=[['mild','Geringgradig'],['moderate','Mittelgradig'],['severe','Ausgeprägt']];
+ const courses=[['new','Neu'],['stable','Unverändert'],['decreased','Regredient'],['increased','Progredient'],['resolved','Nicht mehr nachweisbar']];
+ const statuses=[['pending','Nicht beurteilt'],['normal','Unauffällig'],['abnormal','Pathologisch'],['limited','Eingeschränkt beurteilbar']];
+ const side=()=>select('side','Seite',sides),severity=()=>select('severity','Ausprägung',severities);
+ const course=()=>select('course','Verlauf',courses,{comparison:true});
+ const when=(key,values)=>data=>values.includes(data[key]);
+ return {options,select,multi,number,text,bool,list,category,sides,severities,courses,statuses,side,severity,course,when};
+});
