@@ -105,5 +105,53 @@
     }
   }
 
-  return { ITERATIONS, MIN_PASSWORD_LENGTH, ENVELOPES, isEncrypted, readEnvelope, encrypt, decrypt };
+  /* Browser vault: the same encryption, kept in browser storage. Opening it yields a session whose
+     key is a non-extractable CryptoKey held in memory only, so later changes can be re-sealed without
+     asking for the password again (fresh IV per write, salt fixed per vault). */
+  const VAULT = { format: 'befundungstool-vault', version: 1, aad: 'Befundungstool/vault/v1' };
+
+  function readVault(file) {
+    if (!file || file.format !== VAULT.format || file.version !== VAULT.version || file.kdf !== 'PBKDF2-SHA256' ||
+        file.iterations !== ITERATIONS || file.cipher !== 'AES-256-GCM') throw invalid();
+    const salt = base64ToBytes(file.salt, 16), iv = base64ToBytes(file.iv, 12), ciphertext = base64ToBytes(file.ciphertext, MAX_CIPHERTEXT_BYTES);
+    if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17) throw invalid();
+    return { salt, iv, ciphertext };
+  }
+
+  async function sealVault(payload, session) {
+    const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await subtle().encrypt(
+      { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(VAULT.aad), tagLength: 128 },
+      session.key, new TextEncoder().encode(JSON.stringify(payload))
+    );
+    return {
+      format: VAULT.format, version: VAULT.version, kdf: 'PBKDF2-SHA256', iterations: ITERATIONS, cipher: 'AES-256-GCM',
+      salt: bytesToBase64(session.salt), iv: bytesToBase64(iv), ciphertext: bytesToBase64(new Uint8Array(ciphertext))
+    };
+  }
+
+  async function createVault(payload, password) {
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) throw new Error('Use a password of at least 12 characters.');
+    const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    const session = { salt, key: await passwordKey(password, salt) };
+    return { envelope: await sealVault(payload, session), session };
+  }
+
+  async function openVault(file, password) {
+    const { salt, iv, ciphertext } = readVault(file);
+    const session = { salt, key: await passwordKey(String(password), salt) };
+    let plain;
+    try {
+      plain = await subtle().decrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(VAULT.aad), tagLength: 128 }, session.key, ciphertext);
+    } catch {
+      throw new Error('Incorrect password or damaged settings file');
+    }
+    try {
+      return { payload: JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plain)), session };
+    } catch {
+      throw invalid();
+    }
+  }
+
+  return { ITERATIONS, MIN_PASSWORD_LENGTH, ENVELOPES, VAULT, isEncrypted, readEnvelope, encrypt, decrypt, createVault, openVault, sealVault, readVault };
 });

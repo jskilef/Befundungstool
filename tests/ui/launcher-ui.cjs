@@ -28,11 +28,7 @@ const { createServer } = require('../../server/local-server.cjs');
     assert.equal(await page.locator('link[rel=manifest]').getAttribute('href'), './manifest.webmanifest');
     assert.equal((await page.request.get(base + 'manifest.webmanifest')).status(), 200);
 
-    await page.locator('#aiPanel > summary').click();
-    await page.locator('#aiConnection > summary').click();
-    await page.selectOption('#aiProvider', 'openai');
-    await page.locator('#aiKey').fill('sk-synthetic-launcher');
-    await page.locator('#aiModel').fill('synthetic-model');
+    await require('../helpers/ui.cjs').configureAi(page, { provider: 'openai', key: 'sk-synthetic-launcher', model: 'synthetic-model' });
     assert.equal(await page.locator('#aiDestination').textContent(), 'Befundziel: https://api.openai.com · über lokalen Starter');
     await page.locator('#findings').fill('Synthetischer Befund.');
     await page.locator('#aiReview').click();

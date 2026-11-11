@@ -124,6 +124,7 @@ Object.assign(translations,{'Saved as one password-encrypted file, including API
 function downloadFile(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 // AI connection, prompts and report language. API keys stay in memory only (never browser storage, D5).
 Object.assign(translations,AiPanel.DE);
+Object.assign(translations,{'Settings':'Einstellungen','General':'Allgemein','AI':'KI','Configuration file':'Konfigurationsdatei','Appearance':'Darstellung','Language':'Sprache','Macros':'Textbausteine','AI notes':'KI-Hinweise','Saved keys in this browser':'Im Browser gespeicherte Schlüssel','Save encrypted in this browser':'Verschlüsselt im Browser speichern','Forget':'Vergessen','Later':'Später','Enter your password to load your AI settings and API keys. Everything else works without unlocking.':'Passwort eingeben, um KI-Einstellungen und API-Schlüssel zu laden. Alles andere funktioniert auch ohne Entsperren.','Keep an encrypted copy in this browser':'Verschlüsselte Kopie in diesem Browser behalten','No keys are saved in this browser. Keys you enter stay in memory until the page is closed.':'Keine Schlüssel in diesem Browser gespeichert. Eingegebene Schlüssel bleiben bis zum Schließen der Seite im Arbeitsspeicher.','Encrypted copy saved in this browser · unlocked. Changes are saved automatically.':'Verschlüsselte Kopie in diesem Browser gespeichert · entsperrt. Änderungen werden automatisch gespeichert.','Encrypted copy saved in this browser · locked.':'Verschlüsselte Kopie in diesem Browser gespeichert · gesperrt.','Remove the encrypted copy from this browser? Your configuration file is not affected.':'Verschlüsselte Kopie aus diesem Browser entfernen? Die Konfigurationsdatei bleibt unverändert.','Configuration unlocked':'Konfiguration entsperrt','Encrypted copy removed':'Verschlüsselte Kopie entfernt','Encrypted copy saved in this browser':'Verschlüsselte Kopie in diesem Browser gespeichert'});
 const aiKey='befundungstool-ai-v1';
 let aiSettings=null;
 try{const saved=JSON.parse(localStorage.getItem(aiKey));if(saved&&BefundSettings.validAi(saved)&&!BefundSettings.hasKeys(saved))aiSettings=saved}catch(e){}
@@ -134,9 +135,14 @@ const appVersion=()=>document.querySelector('meta[name="application-version"]').
 function configurationState(){return {macros,templates:customTemplates,chestFavorites:personalFavorites,builderFavorites,settings:configurationSettings(),...(aiSettings?{ai:aiSettings}:{})}}
 function configuration(options={}){return BefundSettings.serialize(configurationState(),{appVersion:appVersion(),...options})}
 
-// Resolves with the password, or null when cancelled.
-let passwordResolver=null;
-function askPassword(saving){
+// Encrypted copy of the AI settings (with keys) in this browser; unlocked once per session (user decision).
+const vault=SettingsVault.create((()=>{try{return localStorage}catch(e){return null}})());
+const vaultState=()=>vault.exists()?(vault.unlocked?'unlocked':'locked'):'none';
+
+// Resolves with the password, or null when cancelled. passwordRemember: "keep an encrypted copy" choice.
+let passwordResolver=null,passwordRemember=false;
+function askPassword(saving,{remember=true}={}){
+  $('rememberRow').hidden=!remember;$('rememberInBrowser').checked=true;
   $('passwordTitle').textContent=translate(saving?'Encrypt settings':'Unlock settings');
   $('passwordHelp').textContent=translate(saving?'Choose a password of at least 12 characters. It cannot be recovered.':'Enter the password used when this settings file was saved.');
   $('confirmPasswordRow').hidden=!saving;$('settingsPasswordConfirm').required=saving;
@@ -151,6 +157,7 @@ $('passwordForm').onsubmit=e=>{
   const saving=!$('confirmPasswordRow').hidden,password=$('settingsPassword').value;
   if(saving&&password.length<SettingsCrypto.MIN_PASSWORD_LENGTH){$('passwordError').textContent=translate('Use a password of at least 12 characters.');return}
   if(saving&&password!==$('settingsPasswordConfirm').value){$('passwordError').textContent=translate('Passwords do not match.');return}
+  passwordRemember=!$('rememberRow').hidden&&$('rememberInBrowser').checked;
   finishPassword(password);
 };
 $('passwordCancel').onclick=()=>finishPassword(null);
@@ -167,6 +174,7 @@ $('saveMacros').onclick=async()=>{
     if(password===null){notify('Saving cancelled');return}
     const encrypted=await SettingsCrypto.encrypt(configuration({includeKeys:true}),password);
     downloadFile('befundungstool-einstellungen.encrypted.json',JSON.stringify(encrypted,null,2),'application/json');
+    if(passwordRemember&&aiSettings){try{await vault.save(aiSettings,password)}catch(e){}renderVault()}
     notify('Encrypted configuration saved');
   }catch(e){notify(e.message==='Encryption is unavailable in this browser'?e.message:'Invalid configuration file')}
   finally{settingsBusy=false}
@@ -177,10 +185,10 @@ $('macroFile').onchange=async()=>{
  const file=$('macroFile').files[0];if(!file||settingsBusy)return;settingsBusy=true;
  try{
   if(file.size>50000000)throw Error('File too large');
-  let data=JSON.parse((await file.text()).replace(/^﻿/,''));
+  let data=JSON.parse((await file.text()).replace(/^﻿/,'')),password=null;
   if(SettingsCrypto.isEncrypted(data)){
    SettingsCrypto.readEnvelope(data);
-   const password=await askPassword(false);
+   password=await askPassword(false);
    if(password===null){notify('Loading cancelled');return}
    data=await SettingsCrypto.decrypt(data,password);
   }
@@ -198,6 +206,9 @@ $('macroFile').onchange=async()=>{
    customTemplates=next.templates;refreshTemplates();applyTemplate();resetHistory();
   }
   storeAi();aiPanel?.setSettings(aiSettings);
+  // Loading an encrypted file with keys: keep an encrypted copy under the same password if requested.
+  if(password&&passwordRemember&&BefundSettings.hasKeys(aiSettings)){try{await vault.save(aiSettings,password)}catch(e){}}
+  renderVault();
   storeMacros();storePreferences();
   let saved=true;
   try{
@@ -232,15 +243,70 @@ chestUI=ChestUI.mount($('chestHost'),{getState:()=>chestState,setState:next=>{ch
 mraState=MRAEngine.syncPreview(mraState);
 mraUI=MRAModule.mount($('mraHost'),{getState:()=>mraState,setState:next=>{mraState=next;update()},copy:text=>copyText(text,'Field copied'),transfer:transferMRA});
 for(const id of ExaminationRegistry.ids){builderStates[id]=ReportGenerator.syncPreview(id,builderStates[id]);builderUIs[id]=ReportBuilderUI.mount(id,$(id+'Host'),{getState:()=>builderStates[id],setState:next=>{builderStates[id]=next;update()},copy:text=>copyText(text,'Field copied'),notify,loadFavorites:()=>builderFavorites[id]||[],saveFavorites:list=>{builderFavorites[id]=list;try{if(!BuilderPersistence.save(localStorage,builderFavorites))notify('Favoriten nur für diese Sitzung gespeichert.')}catch(e){notify('Favoriten nur für diese Sitzung gespeichert.')}},targetHasText:structure=>$('findings').value.trim().length>0||structure==='separate'&&$('impression').value.trim().length>0,transfer:transferBuilder})}
-aiPanel=AiPanel.mount($('aiHost'),{
+// ---- Layout: settings sheet, side tabs, vault unlock -------------------------------------------
+function selectSheetTab(tab){
+  document.querySelectorAll('[data-sheet-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.sheetTab===tab)));
+  document.querySelectorAll('[data-sheet-panel]').forEach(p=>{p.hidden=p.dataset.sheetPanel!==tab});
+}
+function openSettings(tab='general'){selectSheetTab(tab);renderVault();if(!$('settingsSheet').open)$('settingsSheet').showModal()}
+$('openSettings').onclick=()=>openSettings();
+$('closeSettings').onclick=()=>$('settingsSheet').close();
+document.querySelectorAll('[data-sheet-tab]').forEach(b=>{b.onclick=()=>selectSheetTab(b.dataset.sheetTab)});
+// Clicking the scrim (outside the sheet) closes it.
+$('settingsSheet').addEventListener('click',e=>{if(e.target===$('settingsSheet'))$('settingsSheet').close()});
+
+function selectSideTab(id){for(const [tab,panel]of [['tabMacros','panelMacros'],['tabNotes','panelNotes']]){const on=tab===id;$(tab).setAttribute('aria-selected',String(on));$(panel).hidden=!on}}
+$('tabMacros').onclick=()=>selectSideTab('tabMacros');
+$('tabNotes').onclick=()=>selectSideTab('tabNotes');
+// Alt+M (search macros) must reveal the macro tab before the existing shortcut focuses the search field.
+document.addEventListener('keydown',e=>{if(e.altKey&&e.key.toLowerCase()==='m')selectSideTab('tabMacros')},true);
+
+
+function renderVault(){
+  const state=vaultState();
+  $('vaultStatus').textContent=translate(state==='none'?'No keys are saved in this browser. Keys you enter stay in memory until the page is closed.':state==='unlocked'?'Encrypted copy saved in this browser · unlocked. Changes are saved automatically.':'Encrypted copy saved in this browser · locked.');
+  $('vaultUnlock').hidden=state!=='locked';$('vaultSave').hidden=state!=='none';$('vaultForget').hidden=state==='none';
+  aiPanel?.renderChip();
+}
+function forgetVault(){if(!confirm(translate('Remove the encrypted copy from this browser? Your configuration file is not affected.')))return false;vault.forget();notify('Encrypted copy removed');renderVault();return true}
+$('vaultSave').onclick=async()=>{
+  if(!globalThis.crypto?.subtle){notify('Encryption is unavailable in this browser');return}
+  const password=await askPassword(true,{remember:false});if(password===null)return;
+  try{await vault.save(aiSettings||{provider:'none',reportLanguage:'Same as original',profiles:{}},password);notify('Encrypted copy saved in this browser')}catch(e){notify('Storage unavailable · Session only')}
+  renderVault();
+};
+$('vaultForget').onclick=forgetVault;
+$('vaultUnlock').onclick=()=>openUnlock();
+function openUnlock(){if($('settingsSheet').open)$('settingsSheet').close();$('unlockPassword').value='';$('unlockError').textContent='';$('unlockDialog').showModal();$('unlockPassword').focus()}
+$('unlockForm').onsubmit=async e=>{
+  e.preventDefault();$('unlockSubmit').disabled=true;
+  try{
+    const payload=await vault.unlock($('unlockPassword').value);
+    if(!BefundSettings.validAi(payload))throw Error('Invalid encrypted settings file');
+    // Browser preferences may be newer than the copy: keep them and take only the matching keys.
+    aiSettings=aiSettings?keepKeys(JSON.parse(JSON.stringify(aiSettings)),payload):payload;
+    storeAi();aiPanel.setSettings(aiSettings);$('unlockDialog').close();notify('Configuration unlocked');
+  }catch(err){$('unlockError').textContent=translate(err.message==='Incorrect password or damaged settings file'?err.message:'Invalid encrypted settings file')}
+  finally{$('unlockSubmit').disabled=false;$('unlockPassword').value='';renderVault()}
+};
+$('unlockLater').onclick=()=>{$('unlockDialog').close();renderVault()};
+$('unlockForget').onclick=()=>{if(forgetVault())$('unlockDialog').close()};
+
+aiPanel=AiPanel.mount({actions:$('aiActionsHost'),banner:$('aiBannerHost'),settings:$('aiSettingsHost'),notes:$('aiNotesHost'),chip:$('aiChipHost')},{
   translate,notify,uiLanguage:()=>language,confirm:text=>confirm(text),
   getSections:()=>visibleIds().map(id=>({id,label:fieldLabel(id),text:$(id).value,protected:frozen[id].map(r=>$(id).value.slice(r.start,r.end))})),
   getTemplate:()=>({name:$('template').selectedOptions[0]?.textContent||$('template').value,style:customTemplates.find(t=>t.id===$('template').value)?.aiInstructions||''}),
   getAi:()=>aiSettings,
-  setAi:ai=>{aiSettings=ai;storeAi()},
+  setAi:ai=>{aiSettings=ai;storeAi();if(vault.unlocked)vault.save(ai).catch(()=>{})},
   // Same transfer path as the builders: frozen text blocks replace, undo and draft saving follow via update().
-  apply:(id,text,mode)=>{const result=writeReportFields({[id]:text},mode);if(result.ok)update();return result}
+  apply:(id,text,mode)=>{const result=writeReportFields({[id]:text},mode);if(result.ok)update();return result},
+  // Inline suggestions and notes live at the end of each report section.
+  sectionHost:id=>{const section=$(id).closest('.section');let host=section.querySelector(':scope > .ai-inline');if(!host){host=document.createElement('div');host.className='ai-inline';section.append(host)}return host},
+  focusSection:(id,{scrollOnly=false}={})=>{const el=$(id);if(!el)return;el.closest('.section').scrollIntoView({block:'center'});if(!scrollOnly)el.focus({preventScroll:true})},
+  setNotesCount:n=>{$('notesCount').hidden=!n;$('notesCount').textContent=n?String(n):''},
+  openSettings,openUnlock,vaultState
 });
 try{const prefs=JSON.parse(localStorage.getItem(preferencesKey));if(RadnoteConfig.validSettings(prefs)&&(builtins[prefs.selectedTemplate]||customTemplates.some(t=>t.id===prefs.selectedTemplate)))applySettings(prefs)}catch(e){}preferencesReady=true;applyBuilder();
 if(!builtins[$('template').value]&&!customTemplates.some(t=>t.id===$('template').value))$('template').value='structured';ids.forEach(id=>snapshots[id]=$(id).value);applyTemplate();applyLanguage();resetHistory();
 dictation=RadnoteDictation.mount({getFields:()=>fields,getLabel:fieldLabel,onChange:()=>update(),hasChanges:field=>snapshots[field.id]!==field.value,host:document.querySelector('.template-control'),english:()=>language==='en'});
+renderVault();if(vault.exists())openUnlock();

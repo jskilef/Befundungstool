@@ -58,13 +58,15 @@ function makeFolder(name, files) {
     await page.goto('https://befundungstool.test/');
     const waitStatus = text => page.waitForFunction(t => document.querySelector('#aiStatus').textContent.startsWith(t), text, { timeout: 20000 });
 
-    await page.locator('#aiPanel > summary').click();
-    await page.locator('#aiConnection > summary').click();
+    const ui = require('../helpers/ui.cjs');
+    await ui.openSettings(page, 'ai');
     await page.selectOption('#aiProvider', 'wasm');
     for (const id of ['#aiEndpoint', '#aiKey', '#aiModel']) assert(await page.locator(id).isHidden(), id + ' hidden in local mode');
     assert.equal(await page.inputValue('#aiLocalModel'), 'onnx-community/Qwen3-0.6B-ONNX');
     assert.equal(await page.locator('#aiDestination').textContent(), 'Befundverarbeitung: auf diesem Gerät · CPU / WASM');
     assert.equal(await page.locator('#aiModelDownload').getAttribute('href'), 'https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/tree/main');
+    await ui.closeSettings(page);
+    assert.equal(await page.locator('#aiChip').textContent(), 'KI: auf diesem Gerät');
 
     // Preset CPU model: real worker, synthetic runtime, per-section result.
     await page.locator('#findings').fill('Herz normal gross.');
@@ -93,21 +95,26 @@ function makeFolder(name, files) {
     await waitStatus('Prüfung abgeschlossen');
 
     // Custom ONNX folder: detected format and weights, Gemma merges the system prompt, files are used locally.
+    await ui.openSettings(page, 'ai');
     await page.selectOption('#aiLocalModel', 'custom-local');
     assert(await page.locator('#aiCustomRows').isVisible());
     assert(await page.locator('#aiModelDownload').isHidden());
+    await ui.closeSettings(page);
     await page.locator('#aiReview').click();
     await waitStatus('Zum Fortfahren einen eigenen Modellordner wählen.');
+    await ui.openSettings(page, 'ai');
     const onnxDir = makeFolder('Synthetic-Gemma-ONNX', { 'config.json': '{"model_type":"gemma3"}', 'tokenizer.json': '{}', 'onnx/model_q4.onnx': 'x' });
     await page.locator('#aiModelFolder').setInputFiles(onnxDir);
     await page.waitForFunction(() => document.querySelector('#aiFolderStatus').textContent.startsWith('Lokale Modelldateien geladen'));
     assert.equal(await page.locator('#aiFolderStatus').textContent(), 'Lokale Modelldateien geladen: 3 · Synthetic-Gemma-ONNX · ONNX');
     assert.equal(await page.inputValue('#aiCustomDtype'), 'q4');
+    await ui.closeSettings(page);
     await page.locator('#aiReview').click();
     await waitStatus('Prüfung abgeschlossen');
     assert.equal(await page.locator('#aiNotes .ai-issue').textContent(), 'runtimelocal-model|q4|wasm|merged:true');
 
     // MLC folders need WebGPU.
+    await ui.openSettings(page, 'ai');
     const mlcDir = makeFolder('Synthetic-MLC', { 'mlc-chat-config.json': '{}', 'tensor-cache.json': '{"records":[{"dataPath":"p.bin"}]}', 'p.bin': 'x', 'tokenizer.json': '{}', 'lib.wasm': 'x' });
     await page.locator('#aiModelFolder').setInputFiles(mlcDir);
     await page.waitForFunction(() => document.querySelector('#aiFolderStatus').textContent.startsWith('MLC-Modelle benötigen'));
@@ -117,8 +124,10 @@ function makeFolder(name, files) {
     // WebGPU mode reports missing WebGPU instead of falling back to anything else.
     await page.selectOption('#aiProvider', 'webllm');
     assert.equal(await page.locator('#aiDestination').textContent(), 'Befundverarbeitung: auf diesem Gerät · WebGPU');
+    await ui.closeSettings(page);
     await page.locator('#aiReview').click();
     await waitStatus('WebGPU ist auf diesem Computer nicht verfügbar');
+    await ui.openSettings(page, 'ai');
 
     // Local settings persist without folders; model files must be selected again after reload.
     await page.selectOption('#aiProvider', 'wasm');

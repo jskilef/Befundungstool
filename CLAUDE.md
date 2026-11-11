@@ -42,7 +42,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
 | `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/` |
 | `licenses/`, `THIRD_PARTY_NOTICES.md` | Upstream license texts for optional runtimes/models; re-review when versions change |
-| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/helpers/` shared fixtures |
+| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/helpers/` shared fixtures (`ui.cjs` opens the settings sheet, `config-file.cjs` saves/decrypts the configuration) |
 | `docs/` | Module docs and the radnote reference docs (AUDIT, TERMINOLOGY, CLINICAL_NOTICE, FLUENCY_DIRECT) |
 
 `src/builders`, `src/chest`, `src/mra`, `src/settings`, `src/dictation` stay siblings: modules `require('../builders/...')` each other.
@@ -66,7 +66,8 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 - **D2 Templates:** radnote field-based templates are canonical. Each template may carry optional "KI-Stilhinweise" (AI style notes). Report Studio templates import by splitting `Heading:` lines into fields.
 - **D3 AI Revise:** returns revised text **per section**, shown as a per-section diff; nothing reaches the editor until the user applies it (replace / append / cancel). Frozen text stays protected; applying is undoable.
 - **D4 Settings file:** one format, and every save is password-encrypted with everything in it, API keys included (user decision 2026-11-11, replacing "plain unless keys"). AES-256-GCM, PBKDF2-SHA256, 600,000 iterations, fresh salt/IV, password ≥ 12 chars. Without Web Crypto (non-secure context) saving is refused, never downgraded to plaintext. Imports radnote settings v1/v2, legacy macro files, and Report Studio plaintext v1 / encrypted v2.
-- **D5 AI connection:** API keys are **never** written to browser storage. Provider, model and endpoint (non-secret) are remembered like other preferences.
+- **D5 AI connection:** API keys are never written to browser storage in plaintext. Provider, model and endpoint (non-secret) are remembered like other preferences. Keys may only be kept in the encrypted browser vault (`src/settings/vault.js`, user decision 2026-11-11): same AES-GCM/PBKDF2 scheme, unlocked by password once per session, session key held in memory as a non-extractable CryptoKey, changes re-sealed automatically, "Vergessen" deletes it.
+- **Layout (user decision 2026-11-11):** top app bar (report actions, AI status chip, settings gear) → report card with sticky toolbar (template, builder, AI Review/Revise) → AI suggestions and notes inline under each section → side tabs "Textbausteine" / "KI-Hinweise". All settings (appearance, language, draft saving, AI connection, vault, configuration file) live in the settings side sheet. Keep AI results next to the text they refer to.
 - **D6 Themes:** Report Studio's six themes (System, Studio Light, Slate Dark, Midnight, Cobalt Light, Cobalt Dark), each rendered as a Material 3 colour scheme (see Design system).
 - **D7/D8:** see Code style; npm + pinned `@playwright/test`.
 - German is the default UI language with an English switch; the AI report language is a separate setting.

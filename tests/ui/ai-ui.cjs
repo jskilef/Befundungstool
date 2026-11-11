@@ -32,20 +32,27 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     const status = () => page.locator('#aiStatus').textContent();
     const waitStatus = text => page.waitForFunction(t => document.querySelector('#aiStatus').textContent.startsWith(t), text);
 
-    // Nothing is sent without a provider; buttons stay disabled.
+    // Nothing is sent without a provider: the toolbar offers setup instead of Review/Revise.
     assert.deepEqual(external, [], 'no network requests at startup');
-    await page.locator('#aiPanel > summary').click();
+    assert(await page.locator('#aiReview').isHidden());
+    assert.equal(await page.locator('#aiChip').textContent(), 'KI aus');
+    assert(await page.locator('#aiBanner').isHidden());
+    await page.locator('#aiSetup').click();
+    assert(await page.locator('#settingsSheet').evaluate(d => d.open), 'setup opens the settings sheet');
+    assert(await page.locator('[data-sheet-tab=ai]').evaluate(t => t.getAttribute('aria-selected') === 'true'));
     assert.equal(await page.locator('#aiDestination').textContent(), 'Keine KI ausgewählt. Es wird nichts gesendet.');
-    assert(await page.locator('#aiReview').isDisabled());
 
-    // Configure OpenAI.
-    await page.locator('#aiConnection > summary').click();
+    // Configure OpenAI in the settings sheet.
     await page.selectOption('#aiProvider', 'openai');
     assert.equal(await page.inputValue('#aiEndpoint'), 'https://api.openai.com/v1/chat/completions');
     await page.locator('#aiKey').fill(KEY);
     await page.locator('#aiModel').fill('synthetic-model');
     await page.selectOption('#aiReportLanguage', 'German');
     assert.equal(await page.locator('#aiDestination').textContent(), 'Befundziel: https://api.openai.com');
+    await page.locator('#closeSettings').click();
+    assert.equal(await page.locator('#aiChip').textContent(), 'KI: OpenAI · synthetic-model');
+    assert(await page.locator('#aiReview').isVisible());
+    assert(await page.locator('#aiSetup').isHidden());
 
     // Report with frozen text.
     await page.locator('#findings').fill('Kein Pleuraerguss rechts. Herz normal gross.');
@@ -69,6 +76,17 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(await page.locator('#aiNotes .ai-issue strong').textContent(), 'Rechtschreibung · Befund');
     assert.equal(await page.locator('#aiNotes img').count(), 0, 'model text must never become HTML');
     assert.equal(await page.evaluate(() => window.pwned), undefined);
+    // The note also appears directly under the Befund section, and the side tab shows a count.
+    const inlineNote = page.locator('#findings').locator('xpath=ancestor::div[contains(@class,"section")]').locator('.ai-inline-note');
+    assert.equal(await inlineNote.count(), 1);
+    assert.match(await inlineNote.textContent(), /^Rechtschreibung: /);
+    assert.equal(await page.locator('.ai-inline img').count(), 0);
+    assert.equal(await page.locator('#notesCount').textContent(), '1');
+    await page.locator('#tabNotes').click();
+    assert(await page.locator('#aiNotes .ai-issue').isVisible());
+    await page.locator('#aiNotes .ai-issue').click();
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'findings', 'note jumps to its section');
+    await page.locator('#tabMacros').click();
 
     // Revise: per-section diff; frozen text blocks replace; append works; undo restores.
     reply = () => ({ status: 200, body: completion({
@@ -79,6 +97,13 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     await waitStatus('Überarbeitung abgeschlossen');
     assert.equal(await page.locator('.ai-section').count(), 2);
     const findingsCard = page.locator('.ai-section[data-section=findings]');
+    // Suggestions sit inside their own report section.
+    assert(await findingsCard.evaluate(card => card.closest('.section')?.contains(document.getElementById('findings'))));
+    assert.match(await page.locator('#aiStatus').textContent(), /\(2 Vorschläge\)$/);
+    assert(await findingsCard.locator('.ai-draft').isHidden(), 'draft editor hidden until "Bearbeiten"');
+    await findingsCard.locator('[data-action=edit]').click();
+    assert(await findingsCard.locator('.ai-draft').isVisible());
+    assert.equal(await findingsCard.locator('[data-apply=replace]').textContent(), 'Übernehmen');
     assert.equal(await findingsCard.locator('del').textContent(), 'gross');
     assert.equal(await findingsCard.locator('ins').textContent(), 'groß');
     assert(await findingsCard.locator('.ai-warning[hidden]').count() === 1, 'frozen text intact: no warning');
@@ -93,6 +118,7 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(await page.inputValue('#impression'), 'Unauffällig.');
     assert.equal(await impressionCard.locator('.ai-section-state').textContent(), 'Übernommen');
     assert(await impressionCard.locator('[data-apply=append]').isDisabled());
+    assert(await impressionCard.locator('.ai-section-actions').isHidden(), 'applied suggestions collapse');
     await page.locator('#undo').click();
     assert.equal(await page.inputValue('#impression'), 'Unauffaellig.');
 
@@ -130,30 +156,33 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert(await page.locator('#aiReview').isEnabled());
 
     // Changing the endpoint origin clears the key.
+    const ui = require('../helpers/ui.cjs');
+    await ui.openSettings(page, 'ai');
     await page.locator('#aiEndpoint').fill('https://gateway.example.test/v1/chat/completions');
     assert.equal(await page.inputValue('#aiKey'), '');
     assert.match(await status(), /API-Schlüssel wegen geänderter Endpunkt-Adresse entfernt/);
     await page.locator('#aiEndpoint').fill('https://api.openai.com/v1/chat/completions');
     await page.locator('#aiKey').fill(KEY);
+    await ui.closeSettings(page);
 
-    // D5: provider/model/endpoint survive a reload; the key never touches storage.
+    // D5: provider/model/endpoint survive a reload; the key never touches storage (no vault was created).
     assert(!await page.evaluate(k => JSON.stringify(Object.entries(localStorage)).includes(k), KEY));
     await page.reload();
+    assert(await page.locator('#unlockDialog').evaluate(d => !d.open), 'no vault, no unlock prompt');
     assert.equal(await page.inputValue('#aiProvider'), 'openai');
     assert.equal(await page.inputValue('#aiModel'), 'synthetic-model');
     assert.equal(await page.inputValue('#aiReportLanguage'), 'German');
     assert.equal(await page.inputValue('#aiKey'), '');
+    assert.equal(await page.locator('#aiChip').textContent(), 'KI: OpenAI · synthetic-model · Schlüssel fehlt');
 
-    // English interface translates the panel.
-    await page.selectOption('#language', 'en');
-    assert.equal(await page.locator('#aiPanel > summary').textContent(), 'AI review');
+    // English interface translates the AI controls.
+    await ui.setSetting(page, '#language', 'en');
     assert.equal(await page.locator('#aiRevise').textContent(), 'Revise');
+    assert.equal(await page.locator('#tabNotes').textContent(), 'AI notes ');
 
-    // New report clears AI results.
-    await page.selectOption('#language', 'de');
-    await page.locator('#aiPanel > summary').click();
-    await page.locator('#aiConnection > summary').click();
-    await page.locator('#aiKey').fill(KEY);
+    // New report clears AI results, inline and in the side tab.
+    await ui.setSetting(page, '#language', 'de');
+    await ui.configureAi(page, { key: KEY });
     await page.locator('#findings').fill('Text.');
     reply = () => ({ status: 200, body: completion({ issues: [{ category: 'A', detail: 'B' }], changes: [] }) });
     await page.locator('#aiReview').click();
@@ -161,6 +190,8 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     page.once('dialog', d => d.accept());
     await page.locator('#new').click();
     assert.equal(await page.locator('#aiNotes .ai-issue').count(), 0);
+    assert.equal(await page.locator('.ai-inline-note, .ai-section').count(), 0);
+    assert(await page.locator('#notesCount').isHidden());
 
     assert.deepEqual(external, [], 'no unexpected network requests');
     assert.deepEqual(errors, []);

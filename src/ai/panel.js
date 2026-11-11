@@ -104,12 +104,22 @@
     'Browser model failed to load or generate. Check WebGPU, free GPU memory, and access to model downloads. Try a smaller model or the local launcher.': 'Browser-Modell konnte nicht laden oder erzeugen. WebGPU, freien GPU-Speicher und Zugriff auf Modelldownloads prüfen. Ein kleineres Modell oder den lokalen Starter versuchen.'
   });
 
+  Object.assign(DE, {
+    'Set up AI': 'KI einrichten', 'AI off': 'KI aus', 'AI locked': 'KI gesperrt', 'AI:': 'KI:', 'on this device': 'auf diesem Gerät',
+    'key missing': 'Schlüssel fehlt', 'AI settings': 'KI-Einstellungen', 'Unlock saved configuration': 'Gespeicherte Konfiguration entsperren',
+    'Run Review or Revise to see notes here.': 'Prüfen oder Überarbeiten ausführen, um hier Hinweise zu sehen.',
+    'Apply': 'Übernehmen', 'Edit': 'Bearbeiten', 'Edit suggestion': 'Vorschlag bearbeiten', 'AI suggestion': 'KI-Vorschlag',
+    'suggestion': 'Vorschlag', 'suggestions': 'Vorschläge',
+    'Revision complete. No text changes proposed.': 'Überarbeitung abgeschlossen. Keine Textänderungen vorgeschlagen.'
+  });
+
   const REQUEST_TIMEOUT_MS = 180000;
   const LOCAL_TIMEOUT_MS = 1200000;
   const TEST_TIMEOUT_MS = 30000;
   const RAW_LIMIT = 20000;
 
-  function mount(host, bridge) {
+  // hosts: { actions, banner, settings, notes, chip }. Inline suggestions go into bridge.sectionHost(id).
+  function mount(hosts, bridge) {
     const t = key => bridge.translate(key);
     const Providers = root.AiProviders, Contract = root.AiContract, Diff = root.AiDiff, Local = root.AiLocal;
     const isLocal = provider => Local.LOCAL_PROVIDERS.includes(provider);
@@ -178,8 +188,8 @@
       node('p', { class: 'hint', text: 'Choose a complete model folder. Model files stay on this device. Runtime assets still require jsDelivr access.' }),
       ui.download, ui.progress
     ]);
-    const connection = node('details', { id: 'aiConnection' }, [
-      node('summary', { text: 'Connection' }),
+    const connection = node('div', { id: 'aiConnection', class: 'ai-panel' }, [
+      node('p', { class: 'hint', text: 'Optional. Report text is sent only when you click Review, Revise or Test connection.' }),
       node('div', { class: 'ai-grid' }, [field('Provider', ui.provider), ui.modelField, ui.localModelField, field('Report language', ui.language)]),
       ui.apiRows, ui.localRows,
       ui.test,
@@ -189,14 +199,19 @@
         field('Revise prompt', ui.revisePrompt), resetButton('revise')
       ])
     ]);
-    const panel = node('details', { id: 'aiPanel', class: 'card ai-panel' }, [
-      node('summary', { text: 'AI review' }),
-      node('p', { class: 'hint', text: 'Optional. Report text is sent only when you click Review, Revise or Test connection.' }),
-      ui.destination,
-      node('div', { class: 'ai-actions' }, [ui.review, ui.revise, ui.cancel]),
-      ui.status, ui.notes, ui.results, ui.rawBox, connection
-    ]);
-    host.replaceChildren(panel);
+    // Workflow controls live in the report toolbar; setup lives in the settings sheet; notes in the side tab.
+    ui.setup = node('button', { id: 'aiSetup', type: 'button', text: 'Set up AI' });
+    ui.chip = node('button', { id: 'aiChip', type: 'button', class: 'ai-chip' });
+    ui.banner = node('div', { id: 'aiBanner', class: 'ai-banner ai-panel' }, [ui.destination, ui.status, ui.rawBox]);
+    hosts.settings.replaceChildren(connection);
+    hosts.actions.replaceChildren(node('div', { class: 'ai-actions', id: 'aiActions' }, [ui.setup, ui.review, ui.revise, ui.cancel]));
+    hosts.banner.replaceChildren(ui.banner);
+    hosts.notes.replaceChildren(node('div', { class: 'ai-panel' }, [ui.notes]));
+    hosts.chip.replaceChildren(ui.chip);
+    const roots = [hosts.actions, hosts.banner, hosts.settings, hosts.notes, hosts.chip];
+    let inlineNotes = [], inlineCards = [];
+    ui.setup.onclick = () => bridge.openSettings('ai');
+    ui.chip.onclick = () => (ui.chip.dataset.state === 'locked' ? bridge.openUnlock() : bridge.openSettings('ai'));
 
     // ---- Settings ------------------------------------------------------
     let settings = { provider: 'none', reportLanguage: 'Same as original', profiles: {} };
@@ -267,8 +282,8 @@
       const provider = ui.provider.value, none = provider === 'none', local = isLocal(provider);
       const custom = local && ui.localModel.value === Local.CUSTOM_MODEL;
       ui.apiRows.hidden = none || local;
-      ui.modelField.hidden = local;
-      ui.model.disabled = none;
+      ui.modelField.hidden = local || none;
+      ui.test.hidden = none;
       ui.localModelField.hidden = !local;
       ui.localRows.hidden = !local;
       ui.gpuHelp.hidden = provider !== 'webllm' || custom;
@@ -278,8 +293,25 @@
       const page = local ? Local.downloadPage(ui.localModel.value) : null;
       ui.download.hidden = !page;
       if (page) ui.download.href = page;
-      for (const b of [ui.review, ui.revise, ui.test]) b.disabled = none || !!busy;
+      ui.test.disabled = none || !!busy;
+      for (const b of [ui.review, ui.revise]) { b.hidden = none; b.disabled = !!busy; }
+      ui.setup.hidden = !none;
+      ui.cancel.hidden = !busy;
       renderDestination();
+      renderChip();
+      ui.banner.hidden = none && !statusMessage.key;
+    }
+
+    const PROVIDER_NAMES = { openai: 'OpenAI', gemini: 'Gemini', compatible: 'API', webllm: 'on this device', wasm: 'on this device' };
+    function renderChip() {
+      const provider = ui.provider.value;
+      const needsKey = ['openai', 'gemini'].includes(provider) && !ui.key.value.trim();
+      const state = provider === 'none' ? 'off' : needsKey && bridge.vaultState() === 'locked' ? 'locked' : needsKey ? 'nokey' : 'on';
+      ui.chip.dataset.state = state;
+      const model = isLocal(provider) ? '' : ui.model.value.trim();
+      ui.chip.textContent = state === 'off' ? t('AI off') : state === 'locked' ? t('AI locked') :
+        t('AI:') + ' ' + t(PROVIDER_NAMES[provider]) + (model ? ' · ' + model : '') + (state === 'nokey' ? ' · ' + t('key missing') : '');
+      ui.chip.title = state === 'locked' ? t('Unlock saved configuration') : t('AI settings');
     }
 
     function renderDestination() {
@@ -355,6 +387,7 @@
       statusMessage = { key, error, suffix };
       ui.status.textContent = key ? t(key) + suffix : '';
       ui.status.className = error ? 'ai-error' : '';
+      ui.banner.hidden = ui.provider.value === 'none' && !key;
     }
     function describeError(error) {
       if (error?.name === 'AbortError') return ['Cancelled or timed out.', ''];
@@ -389,20 +422,34 @@
       return !current || current.text !== section.original || !same(revision.snapshot.template, bridge.getTemplate()) || revision.snapshot.reportLanguage !== settings.reportLanguage;
     }
 
+    // Notes: full list in the side tab (click jumps to the section) and a short note under each section.
     function renderNotes() {
       ui.notes.replaceChildren();
-      if (!notes) return;
+      inlineNotes.forEach(n => n.remove());
+      inlineNotes = [];
+      bridge.setNotesCount(notes ? notes.issues.length : 0);
+      if (!notes) { ui.notes.append(node('p', { class: 'hint', text: 'Run Review or Revise to see notes here.' })); return; }
       const labels = Object.fromEntries(notes.snapshot.sections.map(s => [s.id, bridge.getSections().find(x => x.id === s.id)?.label || s.id]));
       ui.notes.append(node('h3', { text: 'Review notes' }));
       const provenance = node('p', { class: 'hint ai-provenance' });
       ui.notes.append(provenance);
       if (!notes.issues.length) ui.notes.append(node('p', { class: 'hint', text: 'The model flagged no potential inconsistencies. This does not establish clinical correctness.' }));
       for (const issue of notes.issues) {
-        const item = node('div', { class: 'ai-issue' });
+        const item = node('button', { type: 'button', class: 'ai-issue' });
         const heading = node('strong');
         heading.textContent = issue.category + (issue.section ? ' · ' + labels[issue.section] : '');
         item.append(heading, document.createTextNode(issue.detail));
+        item.disabled = !issue.section;
+        item.onclick = () => issue.section && bridge.focusSection(issue.section);
         ui.notes.append(item);
+        if (issue.section) {
+          const inline = node('div', { class: 'ai-inline-note', role: 'note' });
+          const strong = node('strong');
+          strong.textContent = issue.category + ': ';
+          inline.append(strong, document.createTextNode(issue.detail));
+          bridge.sectionHost(issue.section).prepend(inline);
+          inlineNotes.push(inline);
+        }
       }
       if (notes.changes.length) {
         const p = node('p', { class: 'hint' });
@@ -422,31 +469,37 @@
       }
     }
 
+    // Suggestions appear directly under the section they change, as a diff with explicit actions.
     function renderRevision() {
-      ui.results.replaceChildren();
+      inlineCards.forEach(n => n.remove());
+      inlineCards = [];
       if (!revision) return;
-      ui.results.append(node('h3', { text: 'Proposed revision' }), node('p', { class: 'hint', text: 'Review every change. Amber outline: numbers, units, sides, negation or uncertainty. Highlighting can miss clinically important edits.' }));
-      const changed = revision.sections.filter(s => s.proposed !== s.original);
-      if (!changed.length) { ui.results.append(node('p', { class: 'hint', text: 'No text changes.' })); return; }
-      for (const s of changed) {
+      for (const s of revision.sections.filter(x => x.proposed !== x.original)) {
         const diff = node('div', { class: 'diff-body' });
-        const draft = node('textarea', { class: 'ai-draft', rows: '5', 'data-section': s.id, 'aria-label': s.label });
+        const draft = node('textarea', { class: 'ai-draft', rows: '4', 'data-section': s.id, 'aria-label': s.label });
         draft.value = s.proposed;
         draft.addEventListener('input', () => { if (busy) draftEditedDuringRequest = true; renderDiff(diff, s.original, draft.value); });
-        const state = node('p', { class: 'ai-section-state hint' });
+        const draftField = field('Edit suggestion', draft);
+        draftField.hidden = true;
+        const state = node('span', { class: 'ai-section-state' });
         const frozenWarning = node('p', { class: 'ai-warning', text: 'The AI changed frozen text in this section. Check it before applying.', hidden: s.protectedOk });
         const buttons = node('div', { class: 'ai-section-actions' }, [
-          node('button', { type: 'button', 'data-apply': 'replace', text: 'Replace' }),
+          node('button', { type: 'button', class: 'primary', 'data-apply': 'replace', text: 'Apply' }),
           node('button', { type: 'button', 'data-apply': 'append', text: 'Append' }),
+          node('button', { type: 'button', 'data-action': 'edit', text: 'Edit' }),
           node('button', { type: 'button', 'data-apply': 'discard', text: 'Discard' })
         ]);
-        buttons.onclick = event => { const mode = event.target.closest('button')?.dataset.apply; if (mode) applySection(s, mode, draft.value); };
-        const heading = node('h4');
-        heading.textContent = s.label;
-        const card = node('section', { class: 'ai-section', 'data-section': s.id }, [heading, state, frozenWarning, diff, field('Draft (editable)', draft), buttons]);
+        buttons.onclick = event => {
+          const button = event.target.closest('button');
+          if (button?.dataset.action === 'edit') { draftField.hidden = !draftField.hidden; if (!draftField.hidden) draft.focus(); return; }
+          if (button?.dataset.apply) applySection(s, button.dataset.apply, draft.value);
+        };
+        const head = node('div', { class: 'ai-section-head' }, [node('span', { class: 'ai-label', text: 'AI suggestion' }), state]);
+        const card = node('section', { class: 'ai-section', 'data-section': s.id, 'aria-label': s.label }, [head, frozenWarning, diff, draftField, buttons]);
         renderDiff(diff, s.original, s.proposed);
         s.el = { card, state, buttons, draft };
-        ui.results.append(card);
+        bridge.sectionHost(s.id).append(card);
+        inlineCards.push(card);
       }
       refresh();
     }
@@ -488,6 +541,7 @@
     function setBusy(controller) {
       busy = controller;
       ui.cancel.disabled = !controller;
+      ui.banner.classList.toggle('ai-busy', !!controller);
       syncControls();
     }
     ui.cancel.onclick = () => busy?.abort();
@@ -545,7 +599,11 @@
         renderNotes();
         refresh();
         const changedMeanwhile = !same(before, snapshot(mode));
-        setStatus(changedMeanwhile ? 'Inputs changed during the request. Run the action again.' : mode === 'review' ? 'Review complete. Check the notes.' : 'Revision complete. Check every change before applying it.', changedMeanwhile);
+        const proposals = mode === 'revise' ? revision.sections.filter(s => s.proposed !== s.original).length : 0;
+        setStatus(changedMeanwhile ? 'Inputs changed during the request. Run the action again.' : mode === 'review' ? 'Review complete. Check the notes.' :
+          proposals ? 'Revision complete. Check every change before applying it.' : 'Revision complete. No text changes proposed.', changedMeanwhile,
+          !changedMeanwhile && proposals ? ' (' + proposals + ' ' + t(proposals === 1 ? 'suggestion' : 'suggestions') + ')' : '');
+        if (proposals) bridge.focusSection(revision.sections.find(s => s.proposed !== s.original).id, { scrollOnly: true });
       } catch (error) {
         if (mode === 'revise' && revision) revisionFailed = true;
         if (notes) notesFailed = true;
@@ -593,7 +651,8 @@
 
     // ---- Public API ---------------------------------------------------------
     function applyLanguage() {
-      panel.querySelectorAll('[data-ai-text]').forEach(e => { e.textContent = t(e.dataset.aiText); });
+      for (const rootNode of [...roots, ...inlineCards, ...inlineNotes]) rootNode.querySelectorAll('[data-ai-text]').forEach(e => { e.textContent = t(e.dataset.aiText); });
+      renderChip();
       ui.progress.textContent = progressMessage.key ? t(progressMessage.key) + progressMessage.suffix : '';
       setFolderStatus(folderMessage.key, folderMessage.suffix, ui.folderStatus.classList.contains('ai-warning'));
       renderDestination();
@@ -608,14 +667,15 @@
     function clearResults() {
       busy?.abort();
       notes = null; revision = null; notesFailed = false; revisionFailed = false;
-      ui.notes.replaceChildren(); ui.results.replaceChildren();
+      renderNotes(); renderRevision();
       ui.raw.textContent = ''; ui.rawBox.hidden = true;
       setStatus('');
     }
 
     setSettings(bridge.getAi());
+    renderNotes();
     applyLanguage();
-    return { refresh, applyLanguage, setSettings, clearResults, element: panel };
+    return { refresh, applyLanguage, setSettings, clearResults, renderChip };
   }
 
   return { DE, mount };

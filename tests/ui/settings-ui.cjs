@@ -7,6 +7,7 @@ const path = require('node:path');
 const Crypto = require('../../src/settings/crypto.js');
 const { reportStudioEncrypt } = require('../helpers/report-studio.cjs');
 const { saveConfiguration } = require('../helpers/config-file.cjs');
+const ui = require('../helpers/ui.cjs');
 
 const PASSWORD = 'synthetic-password-1';
 const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.html'), 'utf8');
@@ -59,8 +60,11 @@ const reportStudio = {
 
     await upload('report-studio-settings.encrypted.json', sealed);
     await page.locator('#settingsPassword').fill(PASSWORD);
+    assert(await page.locator('#rememberInBrowser').isChecked(), 'keeping an encrypted copy is the default');
+    await page.locator('#rememberInBrowser').uncheck();
     await page.locator('#passwordSubmit').click();
     await toast('Report-Studio-Einstellungen importiert');
+    assert(!await page.evaluate(() => localStorage.getItem('befundungstool-vault-v1')), 'no copy when unticked');
     assert.equal(await page.inputValue('#findings'), 'Aus radnote übernommen.', 'import must keep report text');
     const option = page.locator('#template option[data-custom]');
     assert.equal(await option.textContent(), 'General radiology');
@@ -78,6 +82,7 @@ const reportStudio = {
     // Keys never touch browser storage. Every save is encrypted and contains everything, keys included.
     assert(!await page.evaluate(() => JSON.stringify(Object.entries(localStorage)).includes('sk-synthetic-ui')));
     await page.locator('#patient').fill('Synthetischer Patient 42');
+    await ui.openSettings(page, 'file');
     const download = page.waitForEvent('download');
     await page.locator('#saveMacros').click();
     await page.locator('#passwordDialog').waitFor();
@@ -91,6 +96,7 @@ const reportStudio = {
     await page.locator('#passwordSubmit').click();
     assert.equal(await page.locator('#passwordError').textContent(), 'Die Passwörter stimmen nicht überein.');
     await page.locator('#settingsPasswordConfirm').fill(PASSWORD);
+    await page.locator('#rememberInBrowser').uncheck();
     await page.locator('#passwordSubmit').click();
     const file = await download;
     const encrypted = { name: file.suggestedFilename(), data: JSON.parse(fs.readFileSync(await file.path(), 'utf8')) };
@@ -108,10 +114,12 @@ const reportStudio = {
     await page.locator('#saveMacros').click();
     await page.locator('#passwordCancel').click();
     await toast('Speichern abgebrochen');
+    await ui.closeSettings(page);
 
-    // A fresh browser restores everything from the encrypted file.
+    // A fresh browser restores everything from the encrypted file and keeps an encrypted copy (default).
     const fresh = await (await browser.newContext()).newPage();
     fresh.on('pageerror', e => errors.push(e.message));
+    fresh.on('dialog', d => d.accept());
     await fresh.route('https://befundungstool.test/**', r => r.fulfill({ contentType: 'text/html', body: html }));
     await fresh.goto('https://befundungstool.test/');
     await fresh.locator('#macroFile').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(encrypted.data)) });
@@ -119,15 +127,53 @@ const reportStudio = {
     await fresh.locator('#passwordSubmit').click();
     await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Konfiguration geladen');
     assert.equal(await fresh.locator('#template option[data-custom]').textContent(), 'General radiology');
-    await fresh.locator('#aiPanel > summary').click();
-    await fresh.locator('#aiConnection > summary').click();
     assert.equal(await fresh.inputValue('#aiKey'), 'sk-synthetic-ui', 'key restored into memory from the encrypted file');
+    const vaultText = await fresh.evaluate(() => localStorage.getItem('befundungstool-vault-v1'));
+    assert(vaultText && !vaultText.includes('sk-synthetic-ui') && JSON.parse(vaultText).format === 'befundungstool-vault', 'encrypted copy only');
+    assert(!await fresh.evaluate(() => JSON.stringify(Object.entries(localStorage)).includes('sk-synthetic-ui')));
+
+    // New session: unlock prompt; wrong password, then the right one restores the key.
+    await fresh.reload();
+    await fresh.locator('#unlockDialog').waitFor();
+    assert.equal(await fresh.locator('#aiChip').textContent(), 'KI gesperrt');
+    await fresh.locator('#unlockPassword').fill('wrong-password-123');
+    await fresh.locator('#unlockSubmit').click();
+    await fresh.waitForFunction(() => document.querySelector('#unlockError').textContent === 'Falsches Passwort oder beschädigte Einstellungsdatei');
+    await fresh.locator('#unlockPassword').fill(PASSWORD);
+    await fresh.locator('#unlockSubmit').click();
+    await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Konfiguration entsperrt');
+    assert.equal(await fresh.inputValue('#aiKey'), 'sk-synthetic-ui');
+    assert.equal(await fresh.locator('#aiChip').textContent(), 'KI: OpenAI · synthetic-model');
+
+    // While unlocked, changes are re-encrypted automatically.
+    await ui.configureAi(fresh, { key: 'sk-synthetic-changed' });
+    await fresh.waitForFunction(old => localStorage.getItem('befundungstool-vault-v1') !== old, vaultText);
+    await fresh.reload();
+    await fresh.locator('#unlockPassword').fill(PASSWORD);
+    await fresh.locator('#unlockSubmit').click();
+    await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Konfiguration entsperrt');
+    assert.equal(await fresh.inputValue('#aiKey'), 'sk-synthetic-changed');
+
+    // "Later" keeps AI locked; the chip offers unlocking; "Forget" removes the copy.
+    await fresh.reload();
+    await fresh.locator('#unlockLater').click();
+    assert.equal(await fresh.inputValue('#aiKey'), '');
+    await fresh.locator('#aiChip').click();
+    assert(await fresh.locator('#unlockDialog').evaluate(d => d.open));
+    await fresh.locator('#unlockForget').click();
+    await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Verschlüsselte Kopie entfernt');
+    assert.equal(await fresh.evaluate(() => localStorage.getItem('befundungstool-vault-v1')), null);
+    await fresh.reload();
+    assert(await fresh.locator('#unlockDialog').evaluate(d => !d.open));
+    await ui.openSettings(fresh, 'ai');
+    assert.match(await fresh.locator('#vaultStatus').textContent(), /^Keine Schlüssel in diesem Browser gespeichert/);
+    await ui.closeSettings(fresh);
 
     // Six themes (D6): colour family for modules, palette for the theme; persisted and exported.
-    await page.selectOption('#theme', 'cobalt-dark');
+    await require('../helpers/ui.cjs').setSetting(page,'#theme','cobalt-dark');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
     assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-dark');
-    await page.selectOption('#theme', 'cobalt-light');
+    await require('../helpers/ui.cjs').setSetting(page,'#theme','cobalt-light');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
     assert.equal((await saveConfiguration(page, PASSWORD)).data.settings.theme, 'cobalt-light');
     await page.reload();
@@ -135,7 +181,7 @@ const reportStudio = {
     assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-light');
 
     assert.deepEqual(errors, []);
-    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, immer verschlüsselter Export mit Schlüsseln, Themes bestanden.');
+    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, immer verschlüsselter Export mit Schlüsseln, Browser-Tresor (Entsperren, Neuverschlüsseln, Später, Vergessen), Themes bestanden.');
   } finally {
     await browser.close();
   }
