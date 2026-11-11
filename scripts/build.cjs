@@ -14,6 +14,7 @@ const slots = {
   MRA_STYLES: () => read('src/mra/theme.css') + '\n' + read('src/mra/styles.css'),
   CHEST_STYLES: () => read('src/chest/styles.css'),
   BUILDER_STYLES: () => read('src/builders/styles.css'),
+  BOOT_SCRIPTS: () => scripts(['src/core/storage-migration.js']),
   EXAM_SHARED_SCRIPTS: () => scripts(['src/builders/preview.js', 'src/dictation/compat.js']),
   MRA_SCRIPTS: () => scripts(['src/mra/anatomy.js', 'src/mra/engine.js', 'src/mra/ui.js']),
   CHEST_SCRIPTS: () => scripts([
@@ -27,7 +28,7 @@ const slots = {
     'src/builders/skeleton-generator.js', 'src/builders/esophagram-generator.js', 'src/builders/generator.js',
     'src/builders/persistence.js', 'src/builders/ui.js'
   ]),
-  SETTINGS_SCRIPTS: () => scripts(['src/settings/config.js']),
+  SETTINGS_SCRIPTS: () => scripts(['src/settings/config.js', 'src/settings/crypto.js', 'src/settings/unified.js']),
   CORE_SCRIPTS: () => read('src/core/editor.js').replace(/\n$/, '')
 };
 

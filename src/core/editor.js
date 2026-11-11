@@ -32,7 +32,7 @@ const translations={
 function translate(text){return language==='de'?(translations[text]||text):text}
 
 Object.assign(translations,{'Report builder':'Baukasten','No builder':'Kein Baukasten','Configuration':'Konfiguration','Save configuration':'Konfiguration speichern','Load configuration':'Konfiguration laden','Back up macros, all custom templates, favorites and settings in one file. Current report text is saved separately as a draft.':'Textbausteine, alle eigenen Vorlagen, Favoriten und Einstellungen in einer Datei sichern. Aktuelle Befundtexte werden separat als Entwurf gespeichert.','Import merges libraries and restores settings. Different templates are kept as additional copies. Existing report text is retained. Legacy macro files are also supported.':'Der Import führt Bibliotheken zusammen und stellt Einstellungen wieder her. Abweichende Vorlagen bleiben als zusätzliche Kopien erhalten. Vorhandene Befundtexte bleiben bestehen. Bisherige Textbaustein-Dateien werden ebenfalls unterstützt.','Configuration loaded':'Konfiguration geladen','Invalid configuration file':'Ungültige Konfigurationsdatei','Unsupported configuration version':'Diese Konfigurationsversion wird nicht unterstützt','Configuration limit exceeded':'Zu viele Einträge nach dem Zusammenführen','Configuration available for this session only':'Konfiguration nur für diese Sitzung verfügbar','File too large':'Datei zu groß (maximal 50 MB)'});
-const $=id=>document.getElementById(id),ids=['indication','technique','comparison','findings','impression','freestyle','combined'],fields=ids.map($),draftKey='radnote-draft-v1',macroKey='radnote-macros-v1',templateKey='radnote-templates-v1';let active=$('findings'),editIndex=-1,timer,dictation=null;
+const $=id=>document.getElementById(id),ids=['indication','technique','comparison','findings','impression','freestyle','combined'],fields=ids.map($),draftKey='befundungstool-draft-v1',macroKey='befundungstool-macros-v1',templateKey='befundungstool-templates-v1';let active=$('findings'),editIndex=-1,timer,dictation=null;
 function macroTrigger(m){return m.trigger||'tab'}
 const validMacro=RadnoteConfig.validMacro;
 function macroTypeHint(){const space=$('macroTrigger').value==='space';$('macroCodeHint').textContent=translate(space?'Word codes contain letters, numbers, underscores or hyphens, e.g. re.':'Tab codes start with a period, e.g. .normal.');$('macroCode').placeholder=space?'re':'.normal'}
@@ -43,17 +43,17 @@ let macros=[rightMacro,{title:'No prior comparison',code:'.prior',text:'No prior
 const frozen=Object.fromEntries(ids.map(id=>[id,[]]));
 const snapshots=Object.fromEntries(ids.map(id=>[id,'']));
 let customTemplates=[],editingTemplateId=null;
-const preferencesKey='radnote-preferences-v1';let preferencesReady=false,lastPreferences='',personalFavorites=[];try{personalFavorites=ChestPersistence.load(localStorage)}catch(e){}
+const preferencesKey='befundungstool-preferences-v1';let preferencesReady=false,lastPreferences='',personalFavorites=[];try{personalFavorites=ChestPersistence.load(localStorage)}catch(e){}
 function configurationSettings(){return {language:$('language').value,theme:$('theme').value,builder:$('builder').value,selectedTemplate:$('template').value,saveDraft:$('persist').checked,macrosOpen:$('macroPanel').open,shortcutsOpen:$('shortcutsPanel').open,settingsOpen:$('settingsPanel').open,chestStyle:chestState.style,chestAuto:chestState.preview.auto!==false,builderPreferences:Object.fromEntries(ExaminationRegistry.ids.map(id=>[id,{style:builderStates[id].style,auto:builderStates[id].preview.auto}]))}}
 function storePreferences(){if(!preferencesReady)return;const next=JSON.stringify(configurationSettings());if(next===lastPreferences)return;try{localStorage.setItem(preferencesKey,next);lastPreferences=next}catch(e){}}
 function applyBuilder(){const selected=$('builder').value;for(const [name,ui]of ExaminationRegistry.builders.map(({id})=>[id,id==='chest'?chestUI:id==='mra'?mraUI:builderUIs[id]])){$(name+'Host').hidden=selected!==name;if(ui&&ui.panel.tagName==='DETAILS')ui.panel.open=selected===name}storePreferences()}
 $('builder').querySelectorAll('option:not([value=none])').forEach(option=>option.remove());for(const builder of ExaminationRegistry.builders){const option=document.createElement('option');option.value=builder.id;option.textContent=builder.title;$('builder').append(option)}
 $('builder').onchange=applyBuilder;
-function applySettings(s){$('theme').value=s.theme;applyTheme();language=s.language;$('language').value=language;try{localStorage.setItem('radnote-language',language)}catch(e){}$('builder').value=s.builder;applyBuilder();$('template').value=s.selectedTemplate;$('persist').checked=s.saveDraft;$('macroPanel').open=s.macrosOpen;$('shortcutsPanel').open=s.shortcutsOpen;$('settingsPanel').open=s.settingsOpen!==false;chestState.style=s.chestStyle;chestState.preview.auto=s.chestAuto;chestState=ChestGenerator.syncPreview(chestState,{macros});chestUI?.render();for(const id of ExaminationRegistry.ids){const p=s.builderPreferences?.[id];if(p){builderStates[id].style=p.style;builderStates[id].preview.auto=p.auto;builderStates[id]=ReportGenerator.syncPreview(id,builderStates[id]);builderUIs[id]?.render()}}if(!s.saveDraft){try{localStorage.removeItem(draftKey)}catch(e){}}}
+function applySettings(s){$('theme').value=s.theme;applyTheme();language=s.language;$('language').value=language;try{localStorage.setItem('befundungstool-language',language)}catch(e){}$('builder').value=s.builder;applyBuilder();$('template').value=s.selectedTemplate;$('persist').checked=s.saveDraft;$('macroPanel').open=s.macrosOpen;$('shortcutsPanel').open=s.shortcutsOpen;$('settingsPanel').open=s.settingsOpen!==false;chestState.style=s.chestStyle;chestState.preview.auto=s.chestAuto;chestState=ChestGenerator.syncPreview(chestState,{macros});chestUI?.render();for(const id of ExaminationRegistry.ids){const p=s.builderPreferences?.[id];if(p){builderStates[id].style=p.style;builderStates[id].preview.auto=p.auto;builderStates[id]=ReportGenerator.syncPreview(id,builderStates[id]);builderUIs[id]?.render()}}if(!s.saveDraft){try{localStorage.removeItem(draftKey)}catch(e){}}}
 let builderStates=Object.fromEntries(ExaminationRegistry.ids.map(id=>[id,BuilderState.empty(id)])),builderUIs={},builderFavorites=BuilderPersistence.empty();try{builderFavorites=BuilderPersistence.load(localStorage)}catch(e){}
 let mraState=MRAEngine.emptyState(),mraUI=null;
 let chestState=ChestState.empty(),chestUI=null;
-const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');function applyTheme(){const choice=$('theme').value;document.documentElement.dataset.theme=choice==='auto'?(themeMedia.matches?'dark':'light'):choice;try{localStorage.setItem('radnote-theme',choice)}catch(e){}}try{const choice=localStorage.getItem('radnote-theme');if(['auto','light','dark'].includes(choice))$('theme').value=choice}catch(e){}$('theme').onchange=()=>{applyTheme();storePreferences()};themeMedia.addEventListener('change',applyTheme);applyTheme();
+const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');function applyTheme(){const choice=$('theme').value;document.documentElement.dataset.theme=choice==='auto'?(themeMedia.matches?'dark':'light'):choice;try{localStorage.setItem('befundungstool-theme',choice)}catch(e){}}try{const choice=localStorage.getItem('befundungstool-theme');if(['auto','light','dark'].includes(choice))$('theme').value=choice}catch(e){}$('theme').onchange=()=>{applyTheme();storePreferences()};themeMedia.addEventListener('change',applyTheme);applyTheme();
 const builtins={structured:['indication','technique','comparison','findings','impression'],chest:['findings'],skeletal:['findings'],combined:['indication','technique','comparison','combined'],freestyle:['freestyle']};
 
 let undoStack=[],redoStack=[],historyCurrent=null,restoringHistory=false;
@@ -67,10 +67,10 @@ function restoreReport(state){restoringHistory=true;for(const id of ExaminationR
 function undoReport(){if(!undoStack.length)return;redoStack.push(reportState());restoreReport(undoStack.pop());notify('Change undone')}
 function redoReport(){if(!redoStack.length)return;undoStack.push(reportState());restoreReport(redoStack.pop());notify('Change redone')}
 $('undo').onclick=undoReport;
-try{$('shortcutsPanel').open=localStorage.getItem('radnote-shortcuts-open')==='true';$('macroPanel').open=localStorage.getItem('radnote-macros-open')!=='false'}catch(e){}
+try{$('shortcutsPanel').open=localStorage.getItem('befundungstool-shortcuts-open')==='true';$('macroPanel').open=localStorage.getItem('befundungstool-macros-open')!=='false'}catch(e){}
 $('settingsPanel').addEventListener('toggle',storePreferences);
-$('macroPanel').addEventListener('toggle',()=>{storePreferences();try{localStorage.setItem('radnote-macros-open',String($('macroPanel').open))}catch(e){}});
-$('shortcutsPanel').addEventListener('toggle',()=>{storePreferences();try{localStorage.setItem('radnote-shortcuts-open',String($('shortcutsPanel').open))}catch(e){}});
+$('macroPanel').addEventListener('toggle',()=>{storePreferences();try{localStorage.setItem('befundungstool-macros-open',String($('macroPanel').open))}catch(e){}});
+$('shortcutsPanel').addEventListener('toggle',()=>{storePreferences();try{localStorage.setItem('befundungstool-shortcuts-open',String($('shortcutsPanel').open))}catch(e){}});
 function visibleIds(){return builtins[$('template').value]||customTemplates.find(t=>t.id===$('template').value)?.fields.map(f=>f.id)||builtins.structured}
 function fieldLabel(id){return id.startsWith('custom-')?sectionNames[id]:translate(sectionNames[id])}
 function fieldDefault(id){return customTemplates.flatMap(t=>t.fields).find(f=>f.id===id)?.defaultText||''}
@@ -92,14 +92,14 @@ function refreshTemplates(){const selected=$('template').value;document.querySel
 function storeTemplates(){try{localStorage.setItem(templateKey,JSON.stringify(customTemplates))}catch(e){notify('Templates saved for this session only')}}
 function removeCustomField(id){const e=$(id);e?.closest('.section').remove();ids.splice(ids.indexOf(id),1);fields.splice(fields.findIndex(e=>e.id===id),1);delete frozen[id];delete snapshots[id];delete sectionNames[id]}
 function templateRow(f={id:uniqueId(),label:'',defaultText:''}){const row=document.createElement('div');row.className='template-row';row.dataset.fieldId=f.id;const label=document.createElement('label');label.textContent=translate('Field name');const name=document.createElement('input');name.className='template-field-name';name.required=true;name.maxLength=80;name.value=f.label;label.append(name);const defaultLabel=document.createElement('label');defaultLabel.textContent=translate('Default text');const text=document.createElement('textarea');text.className='template-field-default';text.value=f.defaultText;text.maxLength=100000;defaultLabel.append(text);const actions=document.createElement('div');actions.className='row-actions';[['Move up',()=>{if(row.previousElementSibling)row.previousElementSibling.before(row)}],['Move down',()=>{if(row.nextElementSibling)row.nextElementSibling.after(row)}],['Remove field',()=>row.remove()]].forEach(([title,action])=>{const b=document.createElement('button');b.type='button';b.textContent=translate(title);b.onclick=action;actions.append(b)});row.append(label,defaultLabel,actions);$('templateRows').append(row)}
-function openTemplate(id=null){editingTemplateId=id;const t=customTemplates.find(t=>t.id===id);$('templateDialogTitle').textContent=translate(t?'Edit template':'Custom template');$('templateName').value=t?.name||'';$('templateRows').replaceChildren();(t?.fields||[{id:uniqueId(),label:'',defaultText:''}]).forEach(templateRow);$('deleteTemplate').hidden=!t;$('templateDialog').showModal()}
+function openTemplate(id=null){editingTemplateId=id;const t=customTemplates.find(t=>t.id===id);$('templateDialogTitle').textContent=translate(t?'Edit template':'Custom template');$('templateName').value=t?.name||'';$('templateRows').replaceChildren();(t?.fields||[{id:uniqueId(),label:'',defaultText:''}]).forEach(templateRow);$('templateAiInstructions').value=t?.aiInstructions||'';$('deleteTemplate').hidden=!t;$('templateDialog').showModal()}
 $('addTemplate').onclick=()=>openTemplate();$('editTemplate').onclick=()=>openTemplate($('template').value);$('cancelTemplate').onclick=()=>$('templateDialog').close();$('addTemplateField').onclick=()=>{if($('templateRows').children.length<30)templateRow()};
-$('templateForm').onsubmit=e=>{e.preventDefault();const name=$('templateName').value.trim();const newFields=[...$('templateRows').children].map(row=>({id:row.dataset.fieldId,label:row.querySelector('input').value.trim(),defaultText:row.querySelector('textarea').value}));if(!newFields.length||newFields.some(f=>!f.label)){notify('At least one named field is required');return}if(customTemplates.some(t=>t.id!==editingTemplateId&&t.name.toLowerCase()===name.toLowerCase())){notify('Use a unique template name');return}const old=customTemplates.find(t=>t.id===editingTemplateId);const removed=(old?.fields||[]).filter(f=>!newFields.some(n=>n.id===f.id));if(removed.some(f=>$(f.id).value)&&!confirm(translate('Removed fields contain report text. Delete those fields?')))return;const t={id:old?.id||uniqueId(),name,fields:newFields};if(old)customTemplates[customTemplates.indexOf(old)]=t;else customTemplates.push(t);removed.forEach(f=>removeCustomField(f.id));refreshTemplates();$('template').value=t.id;storeTemplates();applyTemplate();$('templateDialog').close();resetHistory();notify('Template saved')};
+$('templateForm').onsubmit=e=>{e.preventDefault();const name=$('templateName').value.trim();const newFields=[...$('templateRows').children].map(row=>({id:row.dataset.fieldId,label:row.querySelector('input').value.trim(),defaultText:row.querySelector('textarea').value}));if(!newFields.length||newFields.some(f=>!f.label)){notify('At least one named field is required');return}if(customTemplates.some(t=>t.id!==editingTemplateId&&t.name.toLowerCase()===name.toLowerCase())){notify('Use a unique template name');return}const old=customTemplates.find(t=>t.id===editingTemplateId);const removed=(old?.fields||[]).filter(f=>!newFields.some(n=>n.id===f.id));if(removed.some(f=>$(f.id).value)&&!confirm(translate('Removed fields contain report text. Delete those fields?')))return;const aiInstructions=$('templateAiInstructions').value.trim();const t={id:old?.id||uniqueId(),name,fields:newFields,...(aiInstructions?{aiInstructions}:{})};if(old)customTemplates[customTemplates.indexOf(old)]=t;else customTemplates.push(t);removed.forEach(f=>removeCustomField(f.id));refreshTemplates();$('template').value=t.id;storeTemplates();applyTemplate();$('templateDialog').close();resetHistory();notify('Template saved')};
 $('deleteTemplate').onclick=()=>{const t=customTemplates.find(t=>t.id===editingTemplateId);if(!t||!confirm(translate('Delete this template and its report text?')))return;t.fields.forEach(f=>removeCustomField(f.id));customTemplates=customTemplates.filter(x=>x!==t);refreshTemplates();storeTemplates();applyTemplate();$('templateDialog').close();resetHistory()};
 try{const saved=JSON.parse(localStorage.getItem(templateKey));if(validTemplates(saved))customTemplates=saved}catch(e){}
 refreshTemplates();
 try{const saved=JSON.parse(localStorage.getItem(macroKey));if(Array.isArray(saved)&&saved.every(validMacro))macros=saved;const d=JSON.parse(localStorage.getItem(draftKey));if(d){for(const id of ExaminationRegistry.ids)builderStates[id]=BuilderState.sanitize(id,d.builders?.[id]);chestState=ChestState.sanitize(d.chest);mraState=MRAEngine.sanitize(d.mra);[...ids,'study','patient','date','template'].forEach(id=>{if(typeof d[id]==='string')$(id).value=d[id]});ids.forEach(id=>{const ranges=d.frozen?.[id];if(Array.isArray(ranges))frozen[id]=ranges.filter(r=>Number.isInteger(r.start)&&Number.isInteger(r.end)&&r.start>=0&&r.end>r.start&&r.end<=$(id).value.length)});$('persist').checked=true}}catch(e){}
-try{if(!localStorage.getItem('radnote-word-macro-intro-v1')){if(!macros.some(m=>m.code==='re'))macros.push({...rightMacro});localStorage.setItem(macroKey,JSON.stringify(macros));localStorage.setItem('radnote-word-macro-intro-v1','1')}}catch(e){}
+try{if(!localStorage.getItem('befundungstool-word-macro-intro-v1')){if(!macros.some(m=>m.code==='re'))macros.push({...rightMacro});localStorage.setItem(macroKey,JSON.stringify(macros));localStorage.setItem('befundungstool-word-macro-intro-v1','1')}}catch(e){}
 if(!$('date').value){const d=new Date();$('date').value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
 function update(){dictation?.refresh();storePreferences();reconcile();trackHistory();renderFrozen();const text=visibleIds().map($).map(e=>e.value).join(' ').trim();$('count').textContent=(text?text.split(/\s+/).length:0)+' '+translate('words');if($('persist').checked){try{const d={frozen,mra:mraState,chest:chestState,builders:builderStates};[...ids,'study','patient','date','template'].forEach(id=>d[id]=$(id).value);localStorage.setItem(draftKey,JSON.stringify(d));$('status').textContent=translate('Saved on this device · ')+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}catch(e){$('status').textContent=translate('Storage unavailable · Session only')}}else $('status').textContent=translate('Ready · Session only')}
 function placeholder(){const re=/\[\[[^\]]+\]\]/g;re.lastIndex=active.selectionEnd;let m=re.exec(active.value);if(!m){re.lastIndex=0;m=re.exec(active.value)}if(m){active.focus();active.setSelectionRange(m.index,m.index+m[0].length)}else notify('No remaining placeholders')}
@@ -118,32 +118,86 @@ async function copyText(text,message){const focus=document.activeElement;const s
 $('export').onclick=exportReport;$('copy').onclick=()=>copyText(report(),'Report copied');
 $('new').onclick=()=>{if(([...fields,$('patient')].some(e=>e.value)||mraState.regions.length||Object.values(chestState.findings).some(f=>f.status!=='pending')||chestState.preview.text.trim()||Object.values(builderStates).some(s=>Object.values(s.findings).some(f=>f.status!=='pending')||s.preview.befund.trim()||Object.keys(s.regionCache).length))&&!confirm(translate('Start a new report? Frozen text will be retained.')))return;rememberSelection();for(const id of ExaminationRegistry.ids){const previous=builderStates[id];builderStates[id]=BuilderState.empty(id);builderStates[id].style=previous.style;builderStates[id].preview.auto=previous.preview.auto;builderUIs[id]?.render()}chestState={...ChestState.empty(),style:chestState.style,preview:{...ChestState.empty().preview,auto:chestState.preview.auto}};chestUI?.render();mraState=MRAEngine.emptyState();mraUI?.render();fields.forEach(e=>{const pieces=frozen[e.id].map(r=>e.value.slice(r.start,r.end));e.value=fieldDefault(e.id);let searchFrom=0;frozen[e.id]=pieces.map(text=>{let start=e.value.indexOf(text,searchFrom);if(start<0){if(e.value&&!e.value.endsWith('\n'))e.value+='\n';start=e.value.length;e.value+=text}searchFrom=start+text.length;return {start,end:searchFrom}});snapshots[e.id]=e.value});$('patient').value='';const d=new Date();$('date').value=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');update();$(visibleIds()[0]).focus()};function preparePrint(){document.querySelectorAll('.print-text').forEach(e=>e.remove());fields.forEach(e=>{const d=document.createElement('div');d.className='print-text';d.style.display='none';d.textContent=e.value;e.after(d)})}window.addEventListener('beforeprint',()=>{preparePrint();document.querySelectorAll('.print-text').forEach(e=>e.style.display='block')});window.addEventListener('afterprint',()=>document.querySelectorAll('.print-text').forEach(e=>e.remove()));$('print').onclick=()=>window.print();document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]'))return;if((e.ctrlKey||e.metaKey)&&!e.altKey&&e.key.toLowerCase()==='z'){const target=document.activeElement;const editable=target?.matches('input,textarea,[contenteditable=true]');if(!editable||fields.includes(target)||['patient','date'].includes(target.id)){e.preventDefault();e.shiftKey?redoReport():undoReport()}return;}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();exportReport()}if(e.altKey&&e.key.toLowerCase()==='i'){e.preventDefault();$(visibleIds().includes('impression')?'impression':visibleIds().at(-1)).focus()}if(e.altKey&&e.key.toLowerCase()==='m'){e.preventDefault();$('search').focus()}if(e.key==='F2'){e.preventDefault();placeholder()}});
 
+Object.assign(translations,{'Include API keys (encrypted file)':'API-Schlüssel einschließen (verschlüsselte Datei)','Unlock settings':'Einstellungen entsperren','Encrypt settings':'Einstellungen verschlüsseln','Password':'Passwort','Confirm password':'Passwort bestätigen','Unlock':'Entsperren','Encrypt':'Verschlüsseln','Enter the password used when this settings file was saved.':'Passwort eingeben, mit dem diese Einstellungsdatei gespeichert wurde.','Choose a password of at least 12 characters. It cannot be recovered.':'Passwort mit mindestens 12 Zeichen wählen. Es kann nicht wiederhergestellt werden.','Use a password of at least 12 characters.':'Passwort mit mindestens 12 Zeichen verwenden.','Passwords do not match.':'Die Passwörter stimmen nicht überein.','Incorrect password or damaged settings file':'Falsches Passwort oder beschädigte Einstellungsdatei','Invalid encrypted settings file':'Ungültige verschlüsselte Einstellungsdatei','Encryption is unavailable in this browser':'Verschlüsselung ist in diesem Browser nicht verfügbar','Loading cancelled':'Laden abgebrochen','Saving cancelled':'Speichern abgebrochen','Encrypted configuration saved':'Verschlüsselte Konfiguration gespeichert','Report Studio settings imported':'Report-Studio-Einstellungen importiert','AI style notes (optional)':'KI-Stilhinweise (optional)','Used only when AI reviews or revises a report written with this template.':'Wird nur verwendet, wenn die KI einen Befund mit dieser Vorlage prüft oder überarbeitet.','Report Studio settings files (.json, also encrypted) are imported as templates and AI settings.':'Report-Studio-Einstellungsdateien (.json, auch verschlüsselt) werden als Vorlagen und KI-Einstellungen importiert.'});
 function downloadFile(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-function configuration(){return {format:RadnoteConfig.format,version:RadnoteConfig.version,appVersion:document.querySelector('meta[name="application-version"]').content,macros,templates:customTemplates,chestFavorites:personalFavorites,builderFavorites,settings:configurationSettings()}}
-$('saveMacros').onclick=()=>downloadFile('radnote-configuration.json',JSON.stringify(configuration(),null,2),'application/json');
+// AI connection, prompts and report language. API keys stay in memory only (never browser storage).
+let aiSettings=null;
+const appVersion=()=>document.querySelector('meta[name="application-version"]').content;
+function configurationState(){return {macros,templates:customTemplates,chestFavorites:personalFavorites,builderFavorites,settings:configurationSettings(),...(aiSettings?{ai:aiSettings}:{})}}
+function configuration(options={}){return BefundSettings.serialize(configurationState(),{appVersion:appVersion(),...options})}
+function syncKeyOption(){const hasKeys=BefundSettings.hasKeys(aiSettings);$('includeKeysRow').hidden=!hasKeys;if(!hasKeys)$('includeKeys').checked=false}
+
+// Resolves with the password, or null when cancelled.
+let passwordResolver=null;
+function askPassword(saving){
+  $('passwordTitle').textContent=translate(saving?'Encrypt settings':'Unlock settings');
+  $('passwordHelp').textContent=translate(saving?'Choose a password of at least 12 characters. It cannot be recovered.':'Enter the password used when this settings file was saved.');
+  $('confirmPasswordRow').hidden=!saving;$('settingsPasswordConfirm').required=saving;
+  $('settingsPassword').value='';$('settingsPasswordConfirm').value='';$('passwordError').textContent='';
+  $('passwordSubmit').textContent=translate(saving?'Encrypt':'Unlock');
+  $('passwordDialog').showModal();$('settingsPassword').focus();
+  return new Promise(resolve=>{passwordResolver=resolve});
+}
+function finishPassword(value){const resolve=passwordResolver;passwordResolver=null;$('passwordDialog').close();$('settingsPassword').value='';$('settingsPasswordConfirm').value='';resolve?.(value)}
+$('passwordForm').onsubmit=e=>{
+  e.preventDefault();
+  const saving=!$('confirmPasswordRow').hidden,password=$('settingsPassword').value;
+  if(saving&&password.length<SettingsCrypto.MIN_PASSWORD_LENGTH){$('passwordError').textContent=translate('Use a password of at least 12 characters.');return}
+  if(saving&&password!==$('settingsPasswordConfirm').value){$('passwordError').textContent=translate('Passwords do not match.');return}
+  finishPassword(password);
+};
+$('passwordCancel').onclick=()=>finishPassword(null);
+$('passwordDialog').oncancel=e=>{e.preventDefault();finishPassword(null)};
+
+let settingsBusy=false;
+$('saveMacros').onclick=async()=>{
+  if(settingsBusy)return;settingsBusy=true;
+  try{
+    if(!$('includeKeys').checked){downloadFile('befundungstool-einstellungen.json',JSON.stringify(configuration(),null,2),'application/json');return}
+    const password=await askPassword(true);
+    if(password===null){notify('Saving cancelled');return}
+    const encrypted=await SettingsCrypto.encrypt(configuration({includeKeys:true}),password);
+    downloadFile('befundungstool-einstellungen.encrypted.json',JSON.stringify(encrypted,null,2),'application/json');
+    notify('Encrypted configuration saved');
+  }catch(e){notify(e.message==='Encryption is unavailable in this browser'?e.message:'Invalid configuration file')}
+  finally{settingsBusy=false}
+};
 $('loadMacros').onclick=()=>$('macroFile').click();
+const knownLoadErrors=['File too large','Unsupported configuration version','Configuration limit exceeded','Incorrect password or damaged settings file','Invalid encrypted settings file','Encryption is unavailable in this browser'];
 $('macroFile').onchange=async()=>{
- const file=$('macroFile').files[0];if(!file)return;
+ const file=$('macroFile').files[0];if(!file||settingsBusy)return;settingsBusy=true;
  try{
   if(file.size>50000000)throw Error('File too large');
-  const incoming=RadnoteConfig.parse(JSON.parse(await file.text()));
-  const next=RadnoteConfig.merge(configuration(),incoming,uniqueId);
+  let data=JSON.parse((await file.text()).replace(/^﻿/,''));
+  if(SettingsCrypto.isEncrypted(data)){
+   SettingsCrypto.readEnvelope(data);
+   const password=await askPassword(false);
+   if(password===null){notify('Loading cancelled');return}
+   data=await SettingsCrypto.decrypt(data,password);
+  }
+  // Everything is validated and merged before any state changes.
+  const incoming=BefundSettings.parse(data,uniqueId);
+  const next=BefundSettings.merge(configurationState(),incoming,uniqueId);
   const importedBuilderFavorites=next.builderFavorites||builderFavorites;
   const favorites=incoming.kind==='settings'?next.chestFavorites.map(f=>({...f,snapshot:ChestPersistence.snapshot({...ChestState.empty(),...f.snapshot})})):personalFavorites;
   macros=next.macros;
+  if(next.ai)aiSettings=next.ai;
   if(incoming.kind==='settings'){
    customTemplates=next.templates;refreshTemplates();personalFavorites=favorites;chestUI.reloadFavorites();builderFavorites=importedBuilderFavorites;for(const id of ExaminationRegistry.ids)builderUIs[id]?.reloadFavorites();applySettings(next.settings);
    applyTemplate();applyLanguage();resetHistory();
+  }else if(incoming.kind==='report-studio'){
+   customTemplates=next.templates;refreshTemplates();applyTemplate();resetHistory();
   }
+  syncKeyOption();
   storeMacros();storePreferences();
   let saved=true;
   try{
    for(const [key,value]of [[macroKey,macros],[templateKey,customTemplates],[ChestPersistence.key,personalFavorites],[BuilderPersistence.key,builderFavorites],[preferencesKey,configurationSettings()]])localStorage.setItem(key,JSON.stringify(value));
-   localStorage.setItem('radnote-word-macro-intro-v1','1');
+   localStorage.setItem('befundungstool-word-macro-intro-v1','1');
   }catch(e){saved=false}
-  notify(saved?(incoming.kind==='settings'?'Configuration loaded':'Macros loaded'):'Configuration available for this session only');
- }catch(e){notify(['File too large','Unsupported configuration version','Configuration limit exceeded'].includes(e.message)?e.message:'Invalid configuration file')}
- finally{$('macroFile').value=''}
+  notify(saved?(incoming.kind==='settings'?'Configuration loaded':incoming.kind==='report-studio'?'Report Studio settings imported':'Macros loaded'):'Configuration available for this session only');
+ }catch(e){notify(knownLoadErrors.includes(e.message)?e.message:'Invalid configuration file')}
+ finally{$('macroFile').value='';settingsBusy=false}
 };
 $('licenseButton').onclick=()=>$('licenseDialog').showModal();$('closeLicense').onclick=()=>$('licenseDialog').close();
 const localizedNodes=[];
@@ -153,8 +207,8 @@ const localizedAttributes=[];document.querySelectorAll('[placeholder],[aria-labe
 // Stable option values preserve report selection across language changes.
 document.querySelectorAll('#study option').forEach(option=>{if(!option.hasAttribute('value'))option.value=option.textContent});
 function applyLanguage(){dictation?.refresh();document.documentElement.lang=language;document.title=language==='de'?'Befundungstool · Radiologischer Befundeditor':'Befundungstool · Report editor';localizedNodes.forEach(({node,key,prefix,suffix})=>node.textContent=prefix+translate(key)+suffix);localizedAttributes.forEach(({el,attr,key})=>el.setAttribute(attr,translate(key)));document.querySelectorAll('[data-i18n]').forEach(e=>e.textContent=translate(e.dataset.i18n));macroTypeHint();render();update()}
-try{language=localStorage.getItem('radnote-language')==='en'?'en':'de'}catch(e){}
-$('language').value=language;$('language').onchange=()=>{language=$('language').value;try{localStorage.setItem('radnote-language',language)}catch(e){}applyLanguage()};
+try{language=localStorage.getItem('befundungstool-language')==='en'?'en':'de'}catch(e){}
+$('language').value=language;$('language').onchange=()=>{language=$('language').value;try{localStorage.setItem('befundungstool-language',language)}catch(e){}applyLanguage()};
 
 function writeReportFields(changes,mode){
  if(mode==='replace'&&Object.entries(changes).some(([id,text])=>frozen[id].length&&$(id).value!==text))return {ok:false,message:'Fixierte Textstellen verhindern das Ersetzen. Bitte Anhängen wählen oder Fixierungen aufheben.'};

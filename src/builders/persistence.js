@@ -1,5 +1,5 @@
 (function(root,factory){const node=typeof module==='object'&&module.exports;const api=factory(node?require('./registry.js'):root.ExaminationRegistry,node?require('./state.js'):root.BuilderState);if(node)module.exports=api;else root.BuilderPersistence=api})(globalThis,function(R,S){'use strict';
- const key='radnote-builder-favorites-v1';
+ const key='befundungstool-builder-favorites-v1';
  const empty=()=>Object.fromEntries(R.ids.map(id=>[id,[]]));
  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
  function valid(value){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(id=>!R.ids.includes(id)))return false;return R.ids.every(id=>{const list=value[id]||[];return Array.isArray(list)&&list.length<=100&&new Set(list.map(f=>f?.id)).size===list.length&&list.every(f=>{if(!f||typeof f.id!=='string'||!f.id||f.id.length>100||typeof f.name!=='string'||!f.name.trim()||f.name.length>80||!f.snapshot||typeof f.snapshot!=='object')return false;try{const cleaned=S.snapshot(id,{...S.empty(id),...f.snapshot});return JSON.stringify(canonical(f.snapshot))===JSON.stringify(canonical(cleaned))}catch(e){return false}})})}

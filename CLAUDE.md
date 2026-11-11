@@ -28,11 +28,12 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `src/styles/` | Core styles (to become the shared token/theme system) |
 | `src/builders/` | Shared exam framework + head CT, skeletal, esophagram (radnote `builders/`) |
 | `src/chest/`, `src/mra/` | Chest radiograph and MR angiography builders |
-| `src/settings/` | Configuration format, validation, import/merge |
+| `src/settings/` | `config.js` (radnote v2 rules), `unified.js` (`befundungstool-settings` v1 + legacy imports), `crypto.js` (encrypted envelopes) |
+| `src/core/storage-migration.js` | Runs first: one-time copy of `radnote-*` browser keys to `befundungstool-*` |
 | `src/dictation/` | Fluency Direct compatibility mode |
 | `src/ai/` | (planned) providers, response contract, encryption, diff, local-model workers |
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
-| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright) |
+| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/helpers/` shared fixtures |
 | `docs/` | Module docs and the radnote reference docs (AUDIT, TERMINOLOGY, CLINICAL_NOTICE, FLUENCY_DIRECT) |
 
 `src/builders`, `src/chest`, `src/mra`, `src/settings`, `src/dictation` stay siblings: modules `require('../builders/...')` each other.
@@ -83,6 +84,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 ## Data boundaries
 
 - Configuration (macros, templates, favorites, preferences) is separate from the optional local draft (report text, patient/reference, frozen ranges, builder findings). Config export never contains report content.
+- Browser storage keys are prefixed `befundungstool-` (never write `radnote-*` keys; radnote may share the origin). API keys are never written to browser storage.
 - Browser storage may be unavailable: degrade to session-only, never crash.
 - Tests, fixtures, logs and examples use **synthetic data only**. No real patient data or credentials anywhere in the repo.
 - Legal: MIT. Keep DRG/AGIT/Fleischner/AO/ACR attribution (docs/radnote/TERMINOLOGY.md) and third-party runtime notices. Never claim clinical, DRG, or vendor certification.
