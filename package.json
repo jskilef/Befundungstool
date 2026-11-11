@@ -1,0 +1,16 @@
+{
+  "name": "befundungstool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone radiology report editor with structured builders and optional AI review",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "test": "node scripts/test.cjs",
+    "test:engine": "node scripts/test.cjs engine",
+    "test:ui": "node scripts/test.cjs ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
