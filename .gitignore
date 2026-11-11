@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Test artifacts
+playwright-report/
+test-results/
+.playwright-browsers/
+
+# Local models / large binaries (never commit)
+models/
+*.gguf
+*.onnx
+*.bin
+*.safetensors
+
+# Patient data safety: never commit exported reports or local data
+exports/
+*.local.json
+*.env
+.env*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
