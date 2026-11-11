@@ -70,13 +70,49 @@
     'Reset this prompt to its default?': 'Diesen Prompt auf den Standard zurücksetzen?'
   };
 
+  Object.assign(DE, {
+    'Browser local · GPU (WebGPU)': 'Lokal im Browser · GPU (WebGPU)', 'Browser local · CPU (WebAssembly)': 'Lokal im Browser · CPU (WebAssembly)',
+    'Browser model': 'Browser-Modell', 'Qwen3 0.6B · smallest': 'Qwen3 0.6B · am kleinsten', 'Qwen3 1.7B · balanced': 'Qwen3 1.7B · ausgewogen',
+    'Qwen3 4B · larger': 'Qwen3 4B · größer', 'Qwen3 0.6B · multilingual · larger download': 'Qwen3 0.6B · mehrsprachig · größerer Download',
+    'SmolLM2 135M · tiny · English-focused': 'SmolLM2 135M · sehr klein · englischsprachig', 'MedGemma 4B · ONNX · experimental': 'MedGemma 4B · ONNX · experimentell',
+    'MedGemma 1.5 4B · ONNX · experimental': 'MedGemma 1.5 4B · ONNX · experimentell', 'Custom local model…': 'Eigenes lokales Modell…',
+    'WebGPU is required. First use downloads the runtime and model from jsDelivr, GitHub and Hugging Face. Model weights may be cached; report text stays in the browser worker. No API key is used.': 'WebGPU ist erforderlich. Beim ersten Start werden Laufzeit und Modell von jsDelivr, GitHub und Hugging Face geladen. Modellgewichte können zwischengespeichert werden; der Befundtext bleibt im Browser-Worker. Es wird kein API-Schlüssel verwendet.',
+    'CPU mode needs no WebGPU. First use downloads runtime and model files; this can be large and slow. Reports stay in the local worker. Small models may struggle with German and structured reports.': 'Der CPU-Modus benötigt kein WebGPU. Beim ersten Start werden Laufzeit und Modelldateien geladen; das kann groß und langsam sein. Befunde bleiben im lokalen Worker. Kleine Modelle können mit Deutsch und strukturierten Befunden Probleme haben.',
+    'Load any compatible text-generation model folder. ONNX models use Transformers.js on CPU or WebGPU; MLC models need WebGPU and a matching compiled library. GGUF, safetensors and PyTorch files are not supported.': 'Einen kompatiblen Textgenerierungs-Modellordner laden. ONNX-Modelle nutzen Transformers.js auf CPU oder WebGPU; MLC-Modelle benötigen WebGPU und eine passende kompilierte Bibliothek. GGUF-, safetensors- und PyTorch-Dateien werden nicht unterstützt.',
+    'ONNX weight format': 'ONNX-Gewichtsformat', 'Load model folder': 'Modellordner laden', 'Use online downloads': 'Online-Downloads verwenden',
+    'Choose a complete model folder. Model files stay on this device. Runtime assets still require jsDelivr access.': 'Einen vollständigen Modellordner wählen. Modelldateien bleiben auf diesem Gerät. Laufzeitdateien benötigen weiterhin Zugriff auf jsDelivr.',
+    'Model files and download instructions': 'Modelldateien und Download-Hinweise', 'Unload browser model': 'Browser-Modell entladen',
+    'Report processing: on this device': 'Befundverarbeitung: auf diesem Gerät',
+    'Browser model unloaded.': 'Browser-Modell entladen.', 'CPU worker started. Loading runtime…': 'CPU-Worker gestartet. Laufzeit wird geladen…',
+    'Loading browser model:': 'Browser-Modell wird geladen:', 'Generating locally…': 'Lokale Erzeugung läuft…', 'Browser model ready.': 'Browser-Modell bereit.',
+    'Local model files loaded:': 'Lokale Modelldateien geladen:', 'Online model downloads selected.': 'Online-Modelldownloads ausgewählt.',
+    'Choose a custom model folder to continue.': 'Zum Fortfahren einen eigenen Modellordner wählen.',
+    'Choose browser CPU or WebGPU mode first.': 'Zuerst den Browser-Modus CPU oder WebGPU wählen.',
+    'Choose a supported browser model.': 'Ein unterstütztes Browser-Modell wählen.',
+    'Loading browser model and testing local generation…': 'Browser-Modell wird geladen und lokale Erzeugung getestet…',
+    'MLC models require WebGPU mode. Select an ONNX model for CPU mode.': 'MLC-Modelle benötigen den WebGPU-Modus. Für den CPU-Modus ein ONNX-Modell wählen.',
+    'Loaded model files belong to another model. Load the matching folder or select online downloads.': 'Die geladenen Modelldateien gehören zu einem anderen Modell. Passenden Ordner laden oder Online-Downloads wählen.',
+    'A browser model request is already running.': 'Eine Anfrage an das Browser-Modell läuft bereits.',
+    'WebGPU is unavailable on this computer. Choose CPU mode or an API provider; WebLLM cannot run on CPU.': 'WebGPU ist auf diesem Computer nicht verfügbar. CPU-Modus oder einen API-Anbieter wählen; WebLLM läuft nicht auf der CPU.',
+    'WebAssembly is unavailable in this browser.': 'WebAssembly ist in diesem Browser nicht verfügbar.',
+    'Browser workers are unavailable. Try the local launcher in a current browser.': 'Browser-Worker sind nicht verfügbar. Lokalen Starter in einem aktuellen Browser verwenden.',
+    'Browser worker could not start. Open the app through the local launcher; browser or workplace policy may block workers.': 'Browser-Worker konnte nicht starten. App über den lokalen Starter öffnen; Browser- oder Arbeitsplatzrichtlinien können Worker blockieren.',
+    'CPU input is too long (maximum 2,048 tokens). Shorten the report, template or prompts.': 'Die CPU-Eingabe ist zu lang (maximal 2.048 Token). Befund, Vorlage oder Prompts kürzen.',
+    'CPU model initialization ran out of memory. Close other tabs and apps, then retry; the download size is smaller than the RAM needed.': 'Beim Initialisieren des CPU-Modells reichte der Arbeitsspeicher nicht. Andere Tabs und Programme schließen und erneut versuchen; der Download ist kleiner als der benötigte RAM.',
+    'CPU model loaded, but generation failed. Try a shorter report or the tiny model.': 'CPU-Modell geladen, aber die Erzeugung ist fehlgeschlagen. Kürzeren Befund oder das kleine Modell versuchen.',
+    'CPU model failed to load or generate. Check free RAM, WebAssembly support and access to model downloads. Try the tiny model or the local launcher.': 'CPU-Modell konnte nicht laden oder erzeugen. Freien RAM, WebAssembly-Unterstützung und Zugriff auf Modelldownloads prüfen. Das kleine Modell oder den lokalen Starter versuchen.',
+    'Browser model failed to load or generate. Check WebGPU, free GPU memory, and access to model downloads. Try a smaller model or the local launcher.': 'Browser-Modell konnte nicht laden oder erzeugen. WebGPU, freien GPU-Speicher und Zugriff auf Modelldownloads prüfen. Ein kleineres Modell oder den lokalen Starter versuchen.'
+  });
+
   const REQUEST_TIMEOUT_MS = 180000;
+  const LOCAL_TIMEOUT_MS = 1200000;
   const TEST_TIMEOUT_MS = 30000;
   const RAW_LIMIT = 20000;
 
   function mount(host, bridge) {
     const t = key => bridge.translate(key);
-    const Providers = root.AiProviders, Contract = root.AiContract, Diff = root.AiDiff;
+    const Providers = root.AiProviders, Contract = root.AiContract, Diff = root.AiDiff, Local = root.AiLocal;
+    const isLocal = provider => Local.LOCAL_PROVIDERS.includes(provider);
 
     // ---- DOM -------------------------------------------------------------
     const node = (tag, attrs = {}, children = []) => {
@@ -91,7 +127,17 @@
     const field = (label, control) => node('label', {}, [node('span', { text: label }), control]);
 
     const ui = {
-      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API')]),
+      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API'), option('webllm', 'Browser local · GPU (WebGPU)'), option('wasm', 'Browser local · CPU (WebAssembly)')]),
+      localModel: node('select', { id: 'aiLocalModel' }),
+      dtype: node('select', { id: 'aiCustomDtype' }, Local.LOCAL_DTYPES.map(d => option(d, d))),
+      folder: node('input', { id: 'aiModelFolder', type: 'file', webkitdirectory: true, multiple: true }),
+      clearFolder: node('button', { id: 'aiClearFolder', type: 'button', text: 'Use online downloads' }),
+      folderStatus: node('p', { id: 'aiFolderStatus', class: 'hint' }),
+      unload: node('button', { id: 'aiUnload', type: 'button', text: 'Unload browser model' }),
+      progress: node('p', { id: 'aiModelProgress', class: 'hint', role: 'status' }),
+      download: node('a', { id: 'aiModelDownload', target: '_blank', rel: 'noopener noreferrer', text: 'Model files and download instructions' }),
+      gpuHelp: node('p', { class: 'hint', text: 'WebGPU is required. First use downloads the runtime and model from jsDelivr, GitHub and Hugging Face. Model weights may be cached; report text stays in the browser worker. No API key is used.' }),
+      cpuHelp: node('p', { class: 'hint', text: 'CPU mode needs no WebGPU. First use downloads runtime and model files; this can be large and slow. Reports stay in the local worker. Small models may struggle with German and structured reports.' }),
       endpoint: node('input', { id: 'aiEndpoint', type: 'url', autocomplete: 'off', spellcheck: 'false' }),
       key: node('input', { id: 'aiKey', type: 'password', autocomplete: 'off', spellcheck: 'false' }),
       model: node('input', { id: 'aiModel', autocomplete: 'off', spellcheck: 'false' }),
@@ -116,10 +162,24 @@
       return b;
     };
     ui.apiRows = node('div', { class: 'ai-api-rows' }, [field('Endpoint', ui.endpoint), field('API key', ui.key), node('p', { class: 'hint', text: 'API keys are kept in memory only. Save an encrypted configuration file to keep them.' })]);
+    ui.modelField = field('Model ID', ui.model);
+    ui.localModelField = field('Browser model', ui.localModel);
+    ui.customRows = node('div', { id: 'aiCustomRows' }, [
+      node('p', { class: 'hint', text: 'Load any compatible text-generation model folder. ONNX models use Transformers.js on CPU or WebGPU; MLC models need WebGPU and a matching compiled library. GGUF, safetensors and PyTorch files are not supported.' }),
+      ui.dtypeField = field('ONNX weight format', ui.dtype)
+    ]);
+    ui.localRows = node('div', { id: 'aiLocalRows' }, [
+      ui.gpuHelp, ui.cpuHelp, ui.customRows,
+      field('Load model folder', ui.folder),
+      node('div', { class: 'ai-actions' }, [ui.clearFolder, ui.unload]),
+      ui.folderStatus,
+      node('p', { class: 'hint', text: 'Choose a complete model folder. Model files stay on this device. Runtime assets still require jsDelivr access.' }),
+      ui.download, ui.progress
+    ]);
     const connection = node('details', { id: 'aiConnection' }, [
       node('summary', { text: 'Connection' }),
-      node('div', { class: 'ai-grid' }, [field('Provider', ui.provider), field('Model ID', ui.model), field('Report language', ui.language)]),
-      ui.apiRows,
+      node('div', { class: 'ai-grid' }, [field('Provider', ui.provider), ui.modelField, ui.localModelField, field('Report language', ui.language)]),
+      ui.apiRows, ui.localRows,
       ui.test,
       node('details', { id: 'aiAdvanced' }, [
         node('summary', { text: 'Advanced settings' }),
@@ -142,17 +202,43 @@
     const clone = value => JSON.parse(JSON.stringify(value));
     const originOf = url => { try { return new URL(url).origin; } catch { return null; } };
 
+    // Browser-local models: one runner owns the worker; folder loads are raced by `folderRevision`.
+    let progressMessage = { key: '', suffix: '' }, folderMessage = { key: '', suffix: '' }, folderRevision = 0;
+    const runner = Local.createRunner({ onProgress: (key, suffix = '') => { progressMessage = { key, suffix }; ui.progress.textContent = t(key) + suffix; } });
+    function setFolderStatus(key, suffix = '', error = false) {
+      folderMessage = { key, suffix };
+      ui.folderStatus.textContent = key ? t(key) + suffix : '';
+      ui.folderStatus.classList.toggle('ai-warning', error);
+    }
+
+    // Local presets fall back to the first model of their list.
     function profileFor(provider) {
-      return settings.profiles[provider] || Providers.defaultConnection(provider);
+      const stored = settings.profiles[provider];
+      if (isLocal(provider)) {
+        const models = Local.modelsFor(provider);
+        return { endpoint: '', model: models.includes(stored?.model) ? stored.model : models[0] };
+      }
+      return stored || Providers.defaultConnection(provider);
+    }
+
+    function currentProfile(provider) {
+      if (isLocal(provider)) return { endpoint: '', model: ui.localModel.value };
+      return { endpoint: ui.endpoint.value.trim(), model: ui.model.value.trim(), ...(ui.key.value.trim() ? { apiKey: ui.key.value.trim() } : {}) };
     }
 
     function fillForm() {
       const provider = settings.provider;
       ui.provider.value = provider;
       const profile = provider === 'none' ? { endpoint: '', model: '', apiKey: '' } : profileFor(provider);
-      ui.endpoint.value = profile.endpoint || '';
-      ui.key.value = profile.apiKey || '';
-      ui.model.value = profile.model || '';
+      const local = isLocal(provider);
+      ui.endpoint.value = local ? '' : profile.endpoint || '';
+      ui.key.value = local ? '' : profile.apiKey || '';
+      ui.model.value = local ? '' : profile.model || '';
+      if (local) {
+        ui.localModel.replaceChildren(...Local.modelsFor(provider).map(m => option(m, Local.MODEL_LABELS[m] || m)));
+        ui.localModel.value = profile.model;
+      }
+      ui.dtype.value = settings.customModelDtype || 'q8';
       ui.language.value = settings.reportLanguage;
       ui.reviewPrompt.value = settings.prompts?.review || Contract.DEFAULT_PROMPTS.review;
       ui.revisePrompt.value = settings.prompts?.revise || Contract.DEFAULT_PROMPTS.revise;
@@ -165,7 +251,8 @@
       const provider = ui.provider.value;
       settings.provider = provider;
       settings.reportLanguage = ui.language.value;
-      if (provider !== 'none') settings.profiles[provider] = { endpoint: ui.endpoint.value.trim(), model: ui.model.value.trim(), ...(ui.key.value.trim() ? { apiKey: ui.key.value.trim() } : {}) };
+      if (provider !== 'none') settings.profiles[provider] = currentProfile(provider);
+      settings.customModelDtype = ui.dtype.value;
       const prompts = { review: ui.reviewPrompt.value, revise: ui.revisePrompt.value };
       if (prompts.review === Contract.DEFAULT_PROMPTS.review && prompts.revise === Contract.DEFAULT_PROMPTS.revise) delete settings.prompts;
       else if (prompts.review.trim() && prompts.revise.trim()) settings.prompts = prompts;
@@ -175,15 +262,28 @@
     }
 
     function syncControls() {
-      const none = ui.provider.value === 'none';
-      ui.apiRows.hidden = none;
+      const provider = ui.provider.value, none = provider === 'none', local = isLocal(provider);
+      const custom = local && ui.localModel.value === Local.CUSTOM_MODEL;
+      ui.apiRows.hidden = none || local;
+      ui.modelField.hidden = local;
       ui.model.disabled = none;
+      ui.localModelField.hidden = !local;
+      ui.localRows.hidden = !local;
+      ui.gpuHelp.hidden = provider !== 'webllm' || custom;
+      ui.cpuHelp.hidden = provider !== 'wasm' || custom;
+      ui.customRows.hidden = !custom;
+      ui.dtypeField.hidden = runner.bundle?.model === Local.CUSTOM_MODEL && runner.bundle.format === 'mlc';
+      const page = local ? Local.downloadPage(ui.localModel.value) : null;
+      ui.download.hidden = !page;
+      if (page) ui.download.href = page;
       for (const b of [ui.review, ui.revise, ui.test]) b.disabled = none || !!busy;
       renderDestination();
     }
 
     function renderDestination() {
-      if (ui.provider.value === 'none') { ui.destination.textContent = t('No AI provider selected. Nothing is sent.'); return; }
+      const provider = ui.provider.value;
+      if (provider === 'none') { ui.destination.textContent = t('No AI provider selected. Nothing is sent.'); return; }
+      if (isLocal(provider)) { ui.destination.textContent = t('Report processing: on this device') + ' · ' + (provider === 'wasm' ? 'CPU / WASM' : 'WebGPU'); return; }
       let origin;
       try { origin = new URL(Providers.validateURL(ui.endpoint.value.trim())).origin; } catch { origin = t('Choose a valid endpoint.'); }
       ui.destination.textContent = t('Report destination:') + ' ' + origin;
@@ -191,14 +291,47 @@
 
     ui.provider.onchange = () => {
       readFormFor(settings.provider);
+      ++folderRevision;
+      runner.stop();
       settings.provider = ui.provider.value;
       fillForm();
       readForm();
     };
     // Saves the outgoing provider's fields before switching.
     function readFormFor(provider) {
-      if (provider && provider !== 'none') settings.profiles[provider] = { endpoint: ui.endpoint.value.trim(), model: ui.model.value.trim(), ...(ui.key.value.trim() ? { apiKey: ui.key.value.trim() } : {}) };
+      if (provider && provider !== 'none') settings.profiles[provider] = currentProfile(provider);
     }
+    ui.localModel.addEventListener('change', () => { ++folderRevision; runner.stop(); readForm(); });
+    ui.dtype.addEventListener('change', () => { runner.setDtype(ui.dtype.value); readForm(); });
+    ui.unload.onclick = () => runner.stop();
+    ui.clearFolder.onclick = () => {
+      ++folderRevision;
+      runner.setBundle(null);
+      setFolderStatus(ui.localModel.value === Local.CUSTOM_MODEL ? 'Choose a custom model folder to continue.' : 'Online model downloads selected.');
+      syncControls();
+      refresh();
+    };
+    // Validates the folder for the selected model; a newer selection or a model switch wins the race.
+    ui.folder.addEventListener('change', async event => {
+      const provider = ui.provider.value, model = ui.localModel.value, ticket = ++folderRevision;
+      const files = Array.from(event.target.files || []);
+      try {
+        const entries = Local.modelFolderEntries(files);
+        if (!isLocal(provider)) throw Error('Choose browser CPU or WebGPU mode first.');
+        const description = model === Local.CUSTOM_MODEL ? await Local.describeCustomModel(entries, provider, ui.dtype.value) : null;
+        if (!description) Local.validateModelBundle(model, entries);
+        if (ticket !== folderRevision || provider !== ui.provider.value || model !== ui.localModel.value) return;
+        const name = files[0]?.webkitRelativePath?.split('/')[0] || 'Local model';
+        runner.setBundle({ model, entries, ...description, name });
+        if (description?.dtype) ui.dtype.value = description.dtype;
+        setFolderStatus('Local model files loaded:', ' ' + entries.length + ' · ' + name + (description ? ' · ' + description.format.toUpperCase() : ''));
+        readForm();
+      } catch (error) {
+        if (ticket === folderRevision) setFolderStatus(error.message, '', true);
+      } finally {
+        event.target.value = '';
+      }
+    });
     function endpointEdited() {
       const origin = originOf(ui.endpoint.value.trim());
       if (ui.key.value && origin !== credentialOrigin) {
@@ -243,7 +376,8 @@
         provider: settings.provider,
         endpoint: settings.provider === 'none' ? '' : profileFor(settings.provider).endpoint,
         model: settings.provider === 'none' ? '' : profileFor(settings.provider).model,
-        prompt: mode === 'review' ? ui.reviewPrompt.value : ui.revisePrompt.value
+        prompt: mode === 'review' ? ui.reviewPrompt.value : ui.revisePrompt.value,
+        modelFiles: runner.bundle && runner.bundle.model === profileFor(settings.provider).model ? runner.bundle.revision : 0
       };
     }
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -371,20 +505,17 @@
       ui.rawBox.hidden = true;
       ui.raw.textContent = '';
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), isLocal(settings.provider) ? LOCAL_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
       draftEditedDuringRequest = false;
       setBusy(controller);
       setStatus(mode === 'review' ? 'Reviewing…' : 'Revising…');
       try {
         const { provider, endpoint, key, model } = connectionParts();
-        const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage());
+        // Small CPU models follow the JSON contract more reliably with an example (as in Report Studio).
+        const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm' });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
-        const request = Providers.buildRequest(provider, endpoint, key, model, system, input);
-        const data = await Providers.sendRequest(request, {
-          signal: controller.signal,
-          onRetry: ({ status, attempt, seconds }) => setStatus('Temporary provider failure. Retrying', false, ` ${attempt}/2 (HTTP ${status}, ${seconds} s)…`)
-        });
-        const text = Providers.responseText(data, provider);
+        const data = await send(provider, endpoint, key, model, system, input, controller.signal);
+        const text = Providers.responseText(data, isLocal(provider) ? 'compatible' : provider);
         let parsed;
         try {
           parsed = Contract.parse(text, mode, sections.map(s => s.id));
@@ -427,16 +558,27 @@
     ui.review.onclick = () => runAction('review');
     ui.revise.onclick = () => runAction('revise');
 
+    // API providers go through fetch; browser-local providers through the worker runner. Never both.
+    function send(provider, endpoint, key, model, system, input, signal) {
+      if (isLocal(provider)) return runner.request(Local.buildLocalRequest(provider, model, system, input), signal);
+      const request = Providers.buildRequest(provider, endpoint, key, model, system, input);
+      return Providers.sendRequest(request, {
+        signal,
+        onRetry: ({ status, attempt, seconds }) => setStatus('Temporary provider failure. Retrying', false, ` ${attempt}/2 (HTTP ${status}, ${seconds} s)…`)
+      });
+    }
+
     ui.test.onclick = async () => {
       if (busy) return;
+      const local = isLocal(settings.provider);
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TEST_TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), local ? LOCAL_TIMEOUT_MS : TEST_TIMEOUT_MS);
       setBusy(controller);
-      setStatus('Testing connection (small billable request)…');
+      setStatus(local ? 'Loading browser model and testing local generation…' : 'Testing connection (small billable request)…');
       try {
         const { provider, endpoint, key, model } = connectionParts();
-        const request = Providers.buildRequest(provider, endpoint, key, model, 'Return JSON only.', 'Return {"connected":true}.');
-        Providers.responseText(await Providers.sendRequest(request, { signal: controller.signal }), provider);
+        const data = await send(provider, endpoint, key, model, 'Return JSON only.', 'Return {"connected":true}.', controller.signal);
+        Providers.responseText(data, local ? 'compatible' : provider);
         setStatus('Connection successful.');
       } catch (error) {
         const [key, suffix] = describeError(error);
@@ -450,6 +592,8 @@
     // ---- Public API ---------------------------------------------------------
     function applyLanguage() {
       panel.querySelectorAll('[data-ai-text]').forEach(e => { e.textContent = t(e.dataset.aiText); });
+      ui.progress.textContent = progressMessage.key ? t(progressMessage.key) + progressMessage.suffix : '';
+      setFolderStatus(folderMessage.key, folderMessage.suffix, ui.folderStatus.classList.contains('ai-warning'));
       renderDestination();
       setStatus(statusMessage.key, statusMessage.error, statusMessage.suffix);
       refresh();
