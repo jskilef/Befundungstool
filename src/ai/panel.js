@@ -82,7 +82,7 @@
     'ONNX weight format': 'ONNX-Gewichtsformat', 'Load model folder': 'Modellordner laden', 'Use online downloads': 'Online-Downloads verwenden',
     'Choose a complete model folder. Model files stay on this device. Runtime assets still require jsDelivr access.': 'Einen vollständigen Modellordner wählen. Modelldateien bleiben auf diesem Gerät. Laufzeitdateien benötigen weiterhin Zugriff auf jsDelivr.',
     'Model files and download instructions': 'Modelldateien und Download-Hinweise', 'Unload browser model': 'Browser-Modell entladen',
-    'Report processing: on this device': 'Befundverarbeitung: auf diesem Gerät',
+    'Report processing: on this device': 'Befundverarbeitung: auf diesem Gerät', 'via local launcher': 'über lokalen Starter',
     'Browser model unloaded.': 'Browser-Modell entladen.', 'CPU worker started. Loading runtime…': 'CPU-Worker gestartet. Laufzeit wird geladen…',
     'Loading browser model:': 'Browser-Modell wird geladen:', 'Generating locally…': 'Lokale Erzeugung läuft…', 'Browser model ready.': 'Browser-Modell bereit.',
     'Local model files loaded:': 'Lokale Modelldateien geladen:', 'Online model downloads selected.': 'Online-Modelldownloads ausgewählt.',
@@ -113,6 +113,8 @@
     const t = key => bridge.translate(key);
     const Providers = root.AiProviders, Contract = root.AiContract, Diff = root.AiDiff, Local = root.AiLocal;
     const isLocal = provider => Local.LOCAL_PROVIDERS.includes(provider);
+    // Served by server/local-server.cjs: API calls go through its /api proxy with the session token.
+    const launcher = !!root.BefundungstoolLocal?.token && root.location?.protocol === 'http:' && root.location.hostname === '127.0.0.1';
 
     // ---- DOM -------------------------------------------------------------
     const node = (tag, attrs = {}, children = []) => {
@@ -286,7 +288,7 @@
       if (isLocal(provider)) { ui.destination.textContent = t('Report processing: on this device') + ' · ' + (provider === 'wasm' ? 'CPU / WASM' : 'WebGPU'); return; }
       let origin;
       try { origin = new URL(Providers.validateURL(ui.endpoint.value.trim())).origin; } catch { origin = t('Choose a valid endpoint.'); }
-      ui.destination.textContent = t('Report destination:') + ' ' + origin;
+      ui.destination.textContent = t('Report destination:') + ' ' + origin + (launcher ? ' · ' + t('via local launcher') : '');
     }
 
     ui.provider.onchange = () => {
@@ -356,7 +358,7 @@
     }
     function describeError(error) {
       if (error?.name === 'AbortError') return ['Cancelled or timed out.', ''];
-      if (error?.name === 'TypeError') return [Providers.connectionError(false), ''];
+      if (error?.name === 'TypeError') return [Providers.connectionError(launcher), ''];
       if (error?.name === 'ProviderError') return [error.hint, (error.status ? ' (HTTP ' + error.status + ')' : '') + (error.code ? ' [' + error.code + ']' : '')];
       return [String(error?.message || 'Provider request failed.'), ''];
     }
@@ -563,7 +565,7 @@
       if (isLocal(provider)) return runner.request(Local.buildLocalRequest(provider, model, system, input), signal);
       const request = Providers.buildRequest(provider, endpoint, key, model, system, input);
       return Providers.sendRequest(request, {
-        signal,
+        signal, viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '',
         onRetry: ({ status, attempt, seconds }) => setStatus('Temporary provider failure. Retrying', false, ` ${attempt}/2 (HTTP ${status}, ${seconds} s)…`)
       });
     }

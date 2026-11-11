@@ -1,0 +1,56 @@
+{
+  "reviewedOn": "2026-10-05",
+  "scope": "License document provenance; no runtime binaries or model weights are bundled.",
+  "files": [
+    {
+      "file": "licenses/web-llm-0.2.85-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/v0.2.85/LICENSE",
+      "sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad"
+    },
+    {
+      "file": "licenses/web-llm-openai-protocols-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/v0.2.85/licenses/license.openai_node.txt",
+      "sha256": "77433a1c38d0efab5fdb9e573e5006908a0408c7baf3c317706118b0e17249f2"
+    },
+    {
+      "file": "licenses/transformers-js-3.8.1-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/huggingface/transformers.js/3.8.1/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "file": "licenses/onnxruntime-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/89f8206ba4/LICENSE",
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    {
+      "file": "licenses/onnxruntime-ThirdPartyNotices.txt",
+      "url": "https://raw.githubusercontent.com/microsoft/onnxruntime/89f8206ba4/ThirdPartyNotices.txt",
+      "sha256": "e9e90971a8e75a9a8ac0c6412e29c1202d079998389915aa485f46c816c3b4cc"
+    },
+    {
+      "file": "licenses/Qwen3-0.6B-LICENSE.txt",
+      "url": "https://huggingface.co/Qwen/Qwen3-0.6B/resolve/c1899de289a04d12100db370d81485cdf75e47ca/LICENSE",
+      "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    },
+    {
+      "file": "licenses/Qwen3-1.7B-LICENSE.txt",
+      "url": "https://huggingface.co/Qwen/Qwen3-1.7B/resolve/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e/LICENSE",
+      "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    },
+    {
+      "file": "licenses/Qwen3-4B-LICENSE.txt",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B/resolve/1cfa9a7208912126459214e8b04321603b3df60c/LICENSE",
+      "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    },
+    {
+      "file": "licenses/Apache-2.0.txt",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "file": "licenses/transformers-js-4.3.0-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/huggingface/transformers.js/4.3.0/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    }
+  ]
+}

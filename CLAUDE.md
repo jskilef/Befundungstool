@@ -12,9 +12,11 @@ Standalone radiology report editor (HTML, German-first). It merges two older pro
 Node.js and Git live in `C:\Program Files\nodejs` and `C:\Program Files\Git\cmd`. If a shell lacks them, prepend: `$env:Path = "C:\Program Files\nodejs;C:\Program Files\Git\cmd;" + $env:Path`.
 
 ```powershell
-npm run build              # src/ -> dist/befundungstool.html
+npm run build              # src/ -> dist/befundungstool.html (+ public/ assets)
 npm test                   # build + all tests (tests/engine, then tests/ui)
 node scripts/test.cjs ui undo   # one group, filtered by file name
+npm start                  # build + launcher on http://127.0.0.1:8788
+npm run release            # dist/release/ (ZIP, HTML, SHA256SUMS)
 ```
 
 Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Report Studio, matching `@playwright/test` 1.63.0); `scripts/test.cjs` sets `PLAYWRIGHT_BROWSERS_PATH` automatically. `BT_CHROMIUM_PATH` overrides the Chromium executable.
@@ -31,8 +33,13 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `src/settings/` | `config.js` (radnote v2 rules), `unified.js` (`befundungstool-settings` v1 + legacy imports), `crypto.js` (encrypted envelopes) |
 | `src/core/storage-migration.js` | Runs first: one-time copy of `radnote-*` browser keys to `befundungstool-*` |
 | `src/dictation/` | Fluency Direct compatibility mode |
-| `src/ai/` | (planned) providers, response contract, encryption, diff, local-model workers |
+| `src/ai/` | `providers.js` (API requests), `contract.js` (prompts + strict per-section response format), `diff.js`, `local.js` (WebLLM/Transformers.js workers, model folders), `panel.js` (KI-Prüfung UI) |
+| `src/styles/themes.css` | Six themes; sets the shared variables. `data-theme` = light/dark family, `data-palette` = theme |
+| `public/` | Manifest, icons, index redirect; copied into `dist/` by the build |
+| `server/local-server.cjs` | Optional loopback launcher and `/api` proxy (session token, origin/host checks) |
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
+| `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/` |
+| `licenses/`, `THIRD_PARTY_NOTICES.md` | Upstream license texts for optional runtimes/models; re-review when versions change |
 | `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/helpers/` shared fixtures |
 | `docs/` | Module docs and the radnote reference docs (AUDIT, TERMINOLOGY, CLINICAL_NOTICE, FLUENCY_DIRECT) |
 

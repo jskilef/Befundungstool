@@ -48,6 +48,8 @@ function build() {
   const out = path.join(root, 'dist', 'befundungstool.html');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, html);
+  // Static assets for hosting and the launcher (manifest, icons, index redirect).
+  fs.cpSync(path.join(root, 'public'), path.join(root, 'dist'), { recursive: true });
   return out;
 }
 
