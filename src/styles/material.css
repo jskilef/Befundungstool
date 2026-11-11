@@ -1,0 +1,164 @@
+/* Material Design 3 layer. Loaded last; colour roles come from material-tokens.css (generated).
+   Ported module CSS stays untouched: this file maps its shared variables to M3 roles and restyles
+   components. Selectors use the :root[data-palette][data-theme] prefix (specificity 0,3,0) so they
+   reliably win over module rules. Offline by design: no web fonts or icon fonts are downloaded. */
+
+/* ---- Reference tokens ---- */
+:root{
+  --md-ref-typeface-plain:Roboto,"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --md-ref-typeface-mono:"Roboto Mono",Consolas,"SF Mono",Menlo,monospace;
+  --md-sys-shape-corner-extra-small:4px;--md-sys-shape-corner-small:8px;--md-sys-shape-corner-medium:12px;
+  --md-sys-shape-corner-large:16px;--md-sys-shape-corner-extra-large:28px;--md-sys-shape-corner-full:9999px;
+  --md-sys-elevation-1:0 1px 2px rgb(0 0 0/.3),0 1px 3px 1px rgb(0 0 0/.15);
+  --md-sys-elevation-2:0 1px 2px rgb(0 0 0/.3),0 2px 6px 2px rgb(0 0 0/.15);
+  --md-sys-elevation-3:0 1px 3px rgb(0 0 0/.3),0 4px 8px 3px rgb(0 0 0/.15);
+  --md-sys-motion-easing-standard:cubic-bezier(.2,0,0,1);--md-sys-motion-duration-short:150ms;
+  --md-sys-state-hover:8%;--md-sys-state-focus:10%;--md-sys-state-pressed:10%
+}
+/* Legacy variables used by the ported modules, mapped to M3 roles (beats radnote's html[data-theme=dark]). */
+:root[data-palette]{
+  --ink:var(--md-sys-color-on-surface);--muted:var(--md-sys-color-on-surface-variant);--line:var(--md-sys-color-outline-variant);
+  --accent:var(--md-sys-color-primary);--paper:var(--md-sys-color-surface-container-low);--bg:var(--md-sys-color-surface);
+  --soft:var(--md-sys-color-surface-container);--hover:var(--md-sys-color-secondary-container);
+  /* AI diff colours (Report Studio) harmonised with the scheme. */
+  --ai-warning-border:var(--md-ext-color-warning);--ai-warning-bg:var(--md-ext-color-warning-container);--ai-warning-text:var(--md-ext-color-on-warning-container);
+  --ai-error:var(--md-sys-color-error)
+}
+html[data-theme=dark]{--md-sys-elevation-1:0 1px 2px rgb(0 0 0/.5),0 1px 3px 1px rgb(0 0 0/.3);--md-sys-elevation-3:0 1px 3px rgb(0 0 0/.5),0 4px 8px 3px rgb(0 0 0/.3)}
+
+/* ---- Typography & page ---- */
+:root[data-palette][data-theme] body{background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font:400 14px/20px var(--md-ref-typeface-plain);letter-spacing:.25px;-webkit-font-smoothing:antialiased}
+:root[data-palette][data-theme] :is(button,input,select,textarea){font-family:var(--md-ref-typeface-plain)}
+:root[data-palette][data-theme] p{color:var(--md-sys-color-on-surface-variant);line-height:20px}
+:root[data-palette][data-theme] h1{font-size:28px;line-height:36px;font-weight:400;letter-spacing:0;color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] h2{font-size:22px;line-height:28px;font-weight:400;letter-spacing:0}
+:root[data-palette][data-theme] :is(.side h2,.cx-panel h3,.mra-panel h3,.ai-panel h3){font-size:16px;line-height:24px;font-weight:500;letter-spacing:.15px}
+:root[data-palette][data-theme] :is(.cx-panel h4,.ai-panel h4){font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px}
+:root[data-palette][data-theme] .eyebrow{font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;text-transform:none;color:var(--md-sys-color-primary)}
+:root[data-palette][data-theme] .hint{font-size:12px;line-height:16px;letter-spacing:.4px}
+:root[data-palette][data-theme] a{color:var(--md-sys-color-primary)}
+:root[data-palette][data-theme] :is(code,kbd){font-family:var(--md-ref-typeface-mono)}
+:root[data-palette][data-theme] kbd{border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-sys-shape-corner-extra-small);background:var(--md-sys-color-surface-container-highest);color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] ::selection{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container)}
+
+/* ---- Top app bar ---- */
+:root[data-palette][data-theme] header{background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface);border:0;min-height:64px;padding-top:8px;padding-bottom:8px}
+:root[data-palette][data-theme] .brand{font-size:22px;line-height:28px;font-weight:400;letter-spacing:0}
+:root[data-palette][data-theme] .mark{display:inline-grid;place-items:center;width:40px;height:40px;padding:0;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);font-weight:500;font-size:20px}
+:root[data-palette][data-theme] header #appVersion{color:var(--md-sys-color-on-surface-variant)!important;font-size:12px!important}
+:root[data-palette][data-theme] .brand small{font-size:12px;letter-spacing:.5px;text-transform:none;font-weight:500;color:var(--md-sys-color-on-surface-variant);white-space:nowrap}
+:root[data-palette][data-theme] .brand{white-space:nowrap}
+:root[data-palette][data-theme] header .actions{align-items:center;gap:8px}
+@media (max-width:1360px){:root[data-palette][data-theme] .brand small{display:none}}
+
+/* ---- Buttons: base = outlined; .primary = filled; small sizes inside modules ---- */
+:root[data-palette][data-theme] button{
+  position:relative;min-height:40px;padding:0 24px;border-radius:var(--md-sys-shape-corner-full);
+  border:1px solid var(--md-sys-color-outline);background:transparent;color:var(--md-sys-color-primary);
+  font-size:14px;line-height:20px;font-weight:500;letter-spacing:.1px;
+  transition:background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),box-shadow var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard)
+}
+:root[data-palette][data-theme] button:hover:not(:disabled){background:color-mix(in srgb,currentColor var(--md-sys-state-hover),transparent)}
+:root[data-palette][data-theme] button:active:not(:disabled){background:color-mix(in srgb,currentColor var(--md-sys-state-pressed),transparent)}
+:root[data-palette][data-theme] button.primary{background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);border-color:transparent}
+:root[data-palette][data-theme] button.primary:hover:not(:disabled){background:color-mix(in srgb,var(--md-sys-color-on-primary) var(--md-sys-state-hover),var(--md-sys-color-primary));box-shadow:var(--md-sys-elevation-1)}
+:root[data-palette][data-theme] button.primary:active:not(:disabled){background:color-mix(in srgb,var(--md-sys-color-on-primary) var(--md-sys-state-pressed),var(--md-sys-color-primary));box-shadow:none}
+:root[data-palette][data-theme] button:disabled{opacity:1;cursor:default;color:color-mix(in srgb,var(--md-sys-color-on-surface) 38%,transparent);border-color:color-mix(in srgb,var(--md-sys-color-on-surface) 12%,transparent);background:transparent}
+:root[data-palette][data-theme] button.primary:disabled{background:color-mix(in srgb,var(--md-sys-color-on-surface) 12%,transparent);border-color:transparent}
+/* Header actions: text buttons; the primary action stays filled. */
+:root[data-palette][data-theme] header .actions button:not(.primary){border-color:transparent;padding:0 12px}
+/* Small (32px) buttons for dense module controls. */
+:root[data-palette][data-theme] :is(.cx-actions button,.cx-item button,.cx-favorite button,.cx-macro button,.mra-actions button,.mra-region-heading button,.mra-small,.field-copy,.dictation-action,.freeze-action,.side-head button,.macro-files button,.ai-reset,.ai-section-actions button,.template-row button,#addTemplateField,.local button){min-height:32px;padding:0 12px;font-size:12px;line-height:16px;letter-spacing:.5px}
+:root[data-palette][data-theme] :is(.field-copy,.freeze-action,.dictation-action){border-color:transparent}
+:root[data-palette][data-theme] .macro-files button{flex:1 1 auto;white-space:nowrap}
+:root[data-palette][data-theme] #macros button:not(.macro){min-height:32px;padding:0 12px;font-size:12px;line-height:16px;letter-spacing:.5px;border-color:transparent}
+/* Status toggles (normal / abnormal / limited …): selected = secondary container, like M3 segmented buttons. */
+:root[data-palette][data-theme] :is(.cx-status button,.mra-status-buttons button){min-height:32px;padding:0 12px;font-size:12px;line-height:16px;border-radius:var(--md-sys-shape-corner-small);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant)}
+:root[data-palette][data-theme] :is(.cx-status,.mra-status-buttons) [aria-pressed=true]{outline:0;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);border-color:transparent}
+:root[data-palette][data-theme] [aria-pressed=true]{color:var(--md-sys-color-on-secondary-container)}
+
+/* ---- Chips ---- */
+/* Preset findings and favourites: assist chips. */
+:root[data-palette][data-theme] :is(.cx-quick .cx-actions button,.cx-favorite-macros button,.cx-macro>button:first-child){border-radius:var(--md-sys-shape-corner-small);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface);padding:0 16px}
+/* Region selection: filter chips. */
+:root[data-palette][data-theme] .mra-chip{min-height:32px;padding:0 16px 0 8px;border-radius:var(--md-sys-shape-corner-small);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant);font-size:14px;line-height:20px;font-weight:500}
+:root[data-palette][data-theme] .mra-chip:has(:checked){background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);border-color:transparent}
+/* Frozen text: input chips. */
+:root[data-palette][data-theme] .freeze-chip{min-height:32px;border-radius:var(--md-sys-shape-corner-small);border:1px solid var(--md-sys-color-outline-variant);background:transparent;color:var(--md-sys-color-on-surface-variant);font-size:12px;padding:0 12px}
+:root[data-palette][data-theme] .macro code{float:right;background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);border-radius:var(--md-sys-shape-corner-extra-small);font-size:11px;line-height:16px;padding:0 6px}
+
+/* ---- Text fields: outlined ---- */
+:root[data-palette][data-theme] :is(input:not([type=checkbox],[type=radio],[type=file],[type=range]),select,dialog textarea,.cx-preview textarea,.mra-preview textarea,.ai-panel textarea){
+  min-height:40px;padding:8px 12px;border:1px solid var(--md-sys-color-outline);border-radius:var(--md-sys-shape-corner-extra-small);
+  background:transparent;color:var(--md-sys-color-on-surface);font-size:14px;line-height:20px;letter-spacing:.25px;font-weight:400
+}
+:root[data-palette][data-theme] select{background:var(--md-sys-color-surface-container-lowest)}
+:root[data-palette][data-theme] header select{min-height:40px;border-color:var(--md-sys-color-outline-variant);background:transparent;border-radius:var(--md-sys-shape-corner-small)}
+:root[data-palette][data-theme] header select option,:root[data-palette][data-theme] select option{background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] :is(input,select,textarea):hover:not(:disabled,:focus){border-color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] :is(input:not([type=checkbox],[type=radio],[type=file]),select,dialog textarea,.cx-preview textarea,.mra-preview textarea,.ai-panel textarea):focus{outline:0;border-color:var(--md-sys-color-primary);box-shadow:inset 0 0 0 1px var(--md-sys-color-primary)}
+:root[data-palette][data-theme] :is(.cx-category,.cx-preview,.cx-favorites,.mra-vessel,.mra-input-grid) :is(input:not([type=checkbox],[type=radio]),select){min-height:36px;padding:6px 10px;font-size:13px}
+:root[data-palette][data-theme] ::placeholder{color:var(--md-sys-color-on-surface-variant);opacity:1}
+:root[data-palette][data-theme] label{color:var(--md-sys-color-on-surface-variant);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.4px}
+:root[data-palette][data-theme] :is(input[type=checkbox],input[type=radio]){accent-color:var(--md-sys-color-primary);width:18px;height:18px}
+:root[data-palette][data-theme] input[type=file]{color:var(--md-sys-color-on-surface-variant);font-size:12px}
+:root[data-palette][data-theme] input[type=file]::file-selector-button{margin-right:12px;min-height:32px;padding:0 16px;border-radius:var(--md-sys-shape-corner-full);border:1px solid var(--md-sys-color-outline);background:transparent;color:var(--md-sys-color-primary);font:500 12px/16px var(--md-ref-typeface-plain);cursor:pointer}
+
+/* ---- Report editor surface ---- */
+:root[data-palette][data-theme] .section{border-bottom-color:var(--md-sys-color-outline-variant)}
+:root[data-palette][data-theme] .section label{text-transform:none;letter-spacing:.1px;font-size:14px;line-height:20px;font-weight:500;color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] .section textarea{background:transparent;color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;letter-spacing:.5px;border-radius:0}
+:root[data-palette][data-theme] .section textarea:focus{box-shadow:-3px 0 var(--md-sys-color-primary)}
+:root[data-palette][data-theme] .section textarea::placeholder{color:var(--md-sys-color-on-surface-variant)}
+:root[data-palette][data-theme] :is(.toolbar,.template-control,.dictation-status){background:var(--md-sys-color-surface-container);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant)}
+:root[data-palette][data-theme] .meta,:root[data-palette][data-theme] .footer{border-color:var(--md-sys-color-outline-variant)}
+:root[data-palette][data-theme] .footer{font-size:12px;line-height:16px;color:var(--md-sys-color-on-surface-variant)}
+:root[data-palette][data-theme] textarea[data-dictation=active]{outline:2px solid var(--md-sys-color-primary)}
+
+/* ---- Cards ---- */
+/* Top-level surfaces: elevated cards. */
+:root[data-palette][data-theme] .card{background:var(--md-sys-color-surface-container-low);color:var(--md-sys-color-on-surface);border:0;border-radius:var(--md-sys-shape-corner-medium);box-shadow:var(--md-sys-elevation-1)}
+/* Nested groups: outlined cards. */
+:root[data-palette][data-theme] :is(.cx-category,.mra-vessel,.template-row,.ai-section){background:transparent;border:1px solid var(--md-sys-color-outline-variant);border-radius:var(--md-sys-shape-corner-medium)}
+:root[data-palette][data-theme] :is(.cx-quick,.cx-item,.mra-region,.mra-row,.mra-lesion,.mra-preview){border-color:var(--md-sys-color-outline-variant)}
+/* Notices and warnings. */
+:root[data-palette][data-theme] :is(.cx-notice,.mra-warning,.ai-warning){background:var(--md-ext-color-warning-container);color:var(--md-ext-color-on-warning-container);border-left:0;border-radius:var(--md-sys-shape-corner-small);padding:12px 16px}
+:root[data-palette][data-theme] :is(#chestTransferError,#mraTransferError){color:var(--md-sys-color-error)}
+
+/* ---- Lists: macro library ---- */
+:root[data-palette][data-theme] .macro{min-height:56px;padding:8px 16px;border:0;border-radius:var(--md-sys-shape-corner-medium);background:var(--md-sys-color-surface-container);color:var(--md-sys-color-on-surface);text-align:left;font-weight:400;letter-spacing:.25px}
+:root[data-palette][data-theme] .macro strong{font-size:16px;line-height:24px;font-weight:400;letter-spacing:.5px}
+:root[data-palette][data-theme] .macro span{font-size:14px;line-height:20px;color:var(--md-sys-color-on-surface-variant);margin-top:0}
+:root[data-palette][data-theme] .macro:hover{background:color-mix(in srgb,var(--md-sys-color-on-surface) var(--md-sys-state-hover),var(--md-sys-color-surface-container))}
+
+/* ---- Expansion (details/summary) ---- */
+:root[data-palette][data-theme] summary{font-size:16px;line-height:24px;font-weight:500;letter-spacing:.15px;color:var(--md-sys-color-on-surface);border-radius:var(--md-sys-shape-corner-small)}
+:root[data-palette][data-theme] :is(.cx-category,.cx-subdetails,.cx-favorites,.mra-vessel details,#aiConnection,#aiAdvanced,#aiRawBox)>summary{font-size:14px;line-height:20px;letter-spacing:.1px}
+:root[data-palette][data-theme] summary::marker{color:var(--md-sys-color-on-surface-variant)}
+
+/* ---- Dialogs ---- */
+:root[data-palette][data-theme] dialog{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface);border:0;border-radius:var(--md-sys-shape-corner-extra-large);padding:24px;box-shadow:var(--md-sys-elevation-3);max-width:560px}
+:root[data-palette][data-theme] dialog h2{font-size:24px;line-height:32px;font-weight:400;margin:0 0 16px}
+:root[data-palette][data-theme] dialog::backdrop{background:rgb(0 0 0/.32)}
+:root[data-palette][data-theme] .dialog-actions{gap:8px;margin-top:24px}
+:root[data-palette][data-theme] .dialog-actions button:not(.primary){border-color:transparent;padding:0 12px}
+:root[data-palette][data-theme] dialog pre{color:var(--md-sys-color-on-surface-variant)}
+
+/* ---- Snackbar ---- */
+:root[data-palette][data-theme] #toast{background:var(--md-sys-color-inverse-surface);color:var(--md-sys-color-inverse-on-surface);border-radius:var(--md-sys-shape-corner-extra-small);padding:14px 16px;min-width:min(344px,calc(100vw - 32px));max-width:min(672px,calc(100vw - 32px));font-size:14px;line-height:20px;letter-spacing:.25px;box-shadow:var(--md-sys-elevation-3);z-index:10}
+
+/* ---- Focus indicator (M3: 3px, secondary, 2px offset) ---- */
+:root[data-palette][data-theme] :is(button,a,summary,[tabindex]):focus-visible{outline:3px solid var(--md-sys-color-secondary);outline-offset:2px}
+:root[data-palette][data-theme] :is(input[type=checkbox],input[type=radio]):focus-visible{outline:3px solid var(--md-sys-color-secondary);outline-offset:2px}
+
+/* ---- AI panel specifics ---- */
+:root[data-palette][data-theme] .ai-destination{background:var(--md-sys-color-surface-container-highest);color:var(--md-sys-color-on-surface-variant);border-radius:var(--md-sys-shape-corner-small);padding:8px 12px}
+:root[data-palette][data-theme] .ai-issue{border-left:0;border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-surface-container-high);padding:12px 16px}
+:root[data-palette][data-theme] .ai-issue strong{font-weight:500}
+
+@media print{
+  :root[data-palette][data-theme] header{background:#fff;color:#000}
+  :root[data-palette][data-theme] .card{box-shadow:none;background:#fff}
+  :root[data-palette][data-theme] body{background:#fff;color:#000}
+}
+@media (prefers-reduced-motion:reduce){:root[data-palette][data-theme] *{transition:none!important}}

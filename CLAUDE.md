@@ -34,7 +34,8 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `src/core/storage-migration.js` | Runs first: one-time copy of `radnote-*` browser keys to `befundungstool-*` |
 | `src/dictation/` | Fluency Direct compatibility mode |
 | `src/ai/` | `providers.js` (API requests), `contract.js` (prompts + strict per-section response format), `diff.js`, `local.js` (WebLLM/Transformers.js workers, model folders), `panel.js` (KI-Prüfung UI) |
-| `src/styles/themes.css` | Six themes; sets the shared variables. `data-theme` = light/dark family, `data-palette` = theme |
+| `src/styles/material-tokens.css` | GENERATED M3 colour roles per theme (`node scripts/material-tokens.cjs`; never edit by hand) |
+| `src/styles/material.css` | Material 3 layer, loaded last: maps legacy variables to M3 roles and restyles all components |
 | `public/` | Manifest, icons, index redirect; copied into `dist/` by the build |
 | `server/local-server.cjs` | Optional loopback launcher and `/api` proxy (session token, origin/host checks) |
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
@@ -65,9 +66,19 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 - **D3 AI Revise:** returns revised text **per section**, shown as a per-section diff; nothing reaches the editor until the user applies it (replace / append / cancel). Frozen text stays protected; applying is undoable.
 - **D4 Settings file:** one format. Plain JSON unless "API-Schlüssel einschließen" is ticked, which forces encryption (AES-256-GCM, PBKDF2-SHA256, 600,000 iterations, fresh salt/IV, password ≥ 12 chars). Imports radnote settings v1/v2, legacy macro files, and Report Studio plaintext v1 / encrypted v2.
 - **D5 AI connection:** API keys are **never** written to browser storage. Provider, model and endpoint (non-secret) are remembered like other preferences.
-- **D6 Themes:** Report Studio's six themes (System, Studio Light, Slate Dark, Midnight, Cobalt Light, Cobalt Dark) and its CSS token set, applied to every module.
+- **D6 Themes:** Report Studio's six themes (System, Studio Light, Slate Dark, Midnight, Cobalt Light, Cobalt Dark), each rendered as a Material 3 colour scheme (see Design system).
 - **D7/D8:** see Code style; npm + pinned `@playwright/test`.
 - German is the default UI language with an English switch; the AI report language is a separate setting.
+
+## Design system: Material Design 3 (user requirement, 2026-11-11)
+
+- Follow the [Material 3 guidelines](https://m3.material.io/) for colour roles, typography scale, shape, elevation, states and components.
+- Colours: only `--md-sys-color-*` roles (and `--md-ext-color-warning*` for warnings). No hex values in component CSS. Themes are generated from seed colours in `scripts/material-tokens.cjs`; tones are CIELAB L*, so contrast follows the M3 tone mapping. `tests/engine/material-tokens.cjs` enforces WCAG contrast and that the generated file is current.
+- Components: filled button = primary action (`button.primary`), outlined = default, text buttons for low-emphasis/inline actions, 32 px small buttons in dense module controls; outlined text fields (4 px corners); elevated cards for top-level surfaces, outlined cards for nested groups; chips (8 px corners) for presets, filters and frozen text; dialogs 28 px corners on surface-container-high; snackbar on inverse-surface; focus ring 3 px secondary.
+- Shape tokens `--md-sys-shape-corner-*`, elevation `--md-sys-elevation-1..3`, state layers via `color-mix` (hover 8 %, pressed 10 %).
+- Offline rule wins over Material defaults: no Google Fonts or Material Symbols downloads. Typeface stack starts with Roboto (used if installed) and falls back to system fonts. Icons, if needed, must be inlined SVG.
+- Ported module CSS stays unchanged; adapt it from `material.css` with the `:root[data-palette][data-theme]` prefix. New components (like the AI panel) use M3 tokens directly.
+- `data-theme` stays the light/dark family (module CSS and tests rely on it); `data-palette` selects the scheme.
 
 ## Clinical invariants (from radnote — do not weaken)
 
