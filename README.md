@@ -28,7 +28,7 @@ Without an AI provider selected, the app makes no network requests.
 - Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*.
 
 **Settings and appearance**
-- *Konfiguration speichern/laden*: one JSON file with macros, templates, favorites, preferences and AI settings. API keys are included only on request, and then the file is password-encrypted (AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations). Imports radnote configuration and macro files and Report Studio settings files (plain or encrypted). Report text is never part of a settings file.
+- *Konfiguration speichern/laden*: one password-encrypted file with everything: macros, templates, favorites, preferences, AI settings and API keys (AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations; passwords of at least 12 characters, not recoverable). Loading asks for the password and restores the keys into memory. Also imports radnote configuration and macro files and Report Studio settings files (plain or encrypted). Report text is never part of a settings file.
 - Material Design 3 interface with six themes: System, Studio Hell, Schiefer Dunkel, Mitternacht, Kobalt Hell, Kobalt Dunkel. The Roboto font is embedded, so the app looks the same offline.
 
 ## Data handling

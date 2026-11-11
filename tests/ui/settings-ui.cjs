@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Crypto = require('../../src/settings/crypto.js');
 const { reportStudioEncrypt } = require('../helpers/report-studio.cjs');
+const { saveConfiguration } = require('../helpers/config-file.cjs');
 
 const PASSWORD = 'synthetic-password-1';
 const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.html'), 'utf8');
@@ -40,7 +41,6 @@ const reportStudio = {
     assert.equal(await page.inputValue('#findings'), 'Aus radnote übernommen.');
     assert(await page.evaluate(() => localStorage.getItem('radnote-macros-v1').includes('Altbestand')));
     assert.equal(await page.evaluate(() => localStorage.getItem('befundungstool-migrated-v1')), 'radnote');
-    assert(await page.locator('#includeKeysRow').isHidden());
 
     // Encrypted Report Studio file: cancel, wrong password, then success.
     const sealed = await reportStudioEncrypt(reportStudio, PASSWORD);
@@ -75,35 +75,39 @@ const reportStudio = {
     await page.locator('#templateAiInstructions').fill('Kurze deutsche Sätze.');
     await page.locator('#templateForm button.primary').click();
 
-    // Keys: never in browser storage; plain export strips them; encrypted export keeps them.
+    // Keys never touch browser storage. Every save is encrypted and contains everything, keys included.
     assert(!await page.evaluate(() => JSON.stringify(Object.entries(localStorage)).includes('sk-synthetic-ui')));
-    assert(await page.locator('#includeKeysRow').isVisible());
-    const save = async () => {
-      const download = page.waitForEvent('download');
-      await page.locator('#saveMacros').click();
-      const file = await download;
-      return { name: file.suggestedFilename(), data: JSON.parse(fs.readFileSync(await file.path(), 'utf8')) };
-    };
-    const plain = await save();
-    assert.equal(plain.name, 'befundungstool-einstellungen.json');
-    assert(!JSON.stringify(plain.data).includes('sk-synthetic-ui'));
-    assert.equal(plain.data.templates[0].aiInstructions, 'Kurze deutsche Sätze.');
-    assert.equal(plain.data.ai.profiles.openai.model, 'synthetic-model');
-
-    await page.locator('#includeKeys').check();
-    const pending = save();
+    await page.locator('#patient').fill('Synthetischer Patient 42');
+    const download = page.waitForEvent('download');
+    await page.locator('#saveMacros').click();
     await page.locator('#passwordDialog').waitFor();
+    assert.equal(await page.locator('#passwordTitle').textContent(), 'Einstellungen verschlüsseln');
+    await page.locator('#settingsPassword').fill('short');
+    await page.locator('#settingsPasswordConfirm').fill('short');
+    await page.locator('#passwordSubmit').click();
+    assert.equal(await page.locator('#passwordError').textContent(), 'Passwort mit mindestens 12 Zeichen verwenden.');
     await page.locator('#settingsPassword').fill(PASSWORD);
     await page.locator('#settingsPasswordConfirm').fill(PASSWORD + 'x');
     await page.locator('#passwordSubmit').click();
     assert.equal(await page.locator('#passwordError').textContent(), 'Die Passwörter stimmen nicht überein.');
     await page.locator('#settingsPasswordConfirm').fill(PASSWORD);
     await page.locator('#passwordSubmit').click();
-    const encrypted = await pending;
+    const file = await download;
+    const encrypted = { name: file.suggestedFilename(), data: JSON.parse(fs.readFileSync(await file.path(), 'utf8')) };
     assert.equal(encrypted.name, 'befundungstool-einstellungen.encrypted.json');
+    assert.equal(encrypted.data.format, 'befundungstool-encrypted-settings');
     assert(!JSON.stringify(encrypted.data).includes('sk-synthetic-ui'));
+    assert(!JSON.stringify(encrypted.data).includes('Kurze deutsche'));
     const opened = await Crypto.decrypt(encrypted.data, PASSWORD);
     assert.equal(opened.ai.profiles.openai.apiKey, 'sk-synthetic-ui');
+    assert.equal(opened.templates[0].aiInstructions, 'Kurze deutsche Sätze.');
+    assert.equal(opened.ai.profiles.openai.model, 'synthetic-model');
+    assert(!JSON.stringify(opened).includes('Synthetischer Patient 42'), 'report data is never part of the settings file');
+
+    // Cancelling the password dialog saves nothing.
+    await page.locator('#saveMacros').click();
+    await page.locator('#passwordCancel').click();
+    await toast('Speichern abgebrochen');
 
     // A fresh browser restores everything from the encrypted file.
     const fresh = await (await browser.newContext()).newPage();
@@ -115,7 +119,9 @@ const reportStudio = {
     await fresh.locator('#passwordSubmit').click();
     await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Konfiguration geladen');
     assert.equal(await fresh.locator('#template option[data-custom]').textContent(), 'General radiology');
-    assert(await fresh.locator('#includeKeysRow').isVisible());
+    await fresh.locator('#aiPanel > summary').click();
+    await fresh.locator('#aiConnection > summary').click();
+    assert.equal(await fresh.inputValue('#aiKey'), 'sk-synthetic-ui', 'key restored into memory from the encrypted file');
 
     // Six themes (D6): colour family for modules, palette for the theme; persisted and exported.
     await page.selectOption('#theme', 'cobalt-dark');
@@ -123,14 +129,13 @@ const reportStudio = {
     assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-dark');
     await page.selectOption('#theme', 'cobalt-light');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
-    await page.locator('#includeKeys').uncheck();
-    assert.equal((await save()).data.settings.theme, 'cobalt-light');
+    assert.equal((await saveConfiguration(page, PASSWORD)).data.settings.theme, 'cobalt-light');
     await page.reload();
     assert.equal(await page.inputValue('#theme'), 'cobalt-light');
     assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-light');
 
     assert.deepEqual(errors, []);
-    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, Export ohne/mit Schlüssel, Themes bestanden.');
+    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, immer verschlüsselter Export mit Schlüsseln, Themes bestanden.');
   } finally {
     await browser.close();
   }

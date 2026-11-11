@@ -65,7 +65,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 
 - **D2 Templates:** radnote field-based templates are canonical. Each template may carry optional "KI-Stilhinweise" (AI style notes). Report Studio templates import by splitting `Heading:` lines into fields.
 - **D3 AI Revise:** returns revised text **per section**, shown as a per-section diff; nothing reaches the editor until the user applies it (replace / append / cancel). Frozen text stays protected; applying is undoable.
-- **D4 Settings file:** one format. Plain JSON unless "API-Schlüssel einschließen" is ticked, which forces encryption (AES-256-GCM, PBKDF2-SHA256, 600,000 iterations, fresh salt/IV, password ≥ 12 chars). Imports radnote settings v1/v2, legacy macro files, and Report Studio plaintext v1 / encrypted v2.
+- **D4 Settings file:** one format, and every save is password-encrypted with everything in it, API keys included (user decision 2026-11-11, replacing "plain unless keys"). AES-256-GCM, PBKDF2-SHA256, 600,000 iterations, fresh salt/IV, password ≥ 12 chars. Without Web Crypto (non-secure context) saving is refused, never downgraded to plaintext. Imports radnote settings v1/v2, legacy macro files, and Report Studio plaintext v1 / encrypted v2.
 - **D5 AI connection:** API keys are **never** written to browser storage. Provider, model and endpoint (non-secret) are remembered like other preferences.
 - **D6 Themes:** Report Studio's six themes (System, Studio Light, Slate Dark, Midnight, Cobalt Light, Cobalt Dark), each rendered as a Material 3 colour scheme (see Design system).
 - **D7/D8:** see Code style; npm + pinned `@playwright/test`.

@@ -4,7 +4,7 @@ const {chromium}=require('@playwright/test'),assert=require('assert/strict'),fs=
  const errors=[],html=fs.readFileSync(path.join(__dirname,'../../dist/befundungstool.html'),'utf8');
  async function open(context){const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.route('https://radnote.test/**',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('https://radnote.test/');return page}
  async function upload(page,data){await page.locator('#macroFile').setInputFiles({name:'configuration.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))})}
- async function exported(page){if(!await page.locator('#settingsPanel').evaluate(e=>e.open))await page.locator('#settingsPanel summary').click();const wait=page.waitForEvent('download');await page.locator('#saveMacros').click();const file=await wait;assert.equal(file.suggestedFilename(),'befundungstool-einstellungen.json');return JSON.parse(fs.readFileSync(await file.path(),'utf8'))}
+ async function exported(page){const file=await require('../helpers/config-file.cjs').saveConfiguration(page);assert.equal(file.name,'befundungstool-einstellungen.encrypted.json');assert.equal(file.envelope.format,'befundungstool-encrypted-settings');return file.data}
  const source=await open(await browser.newContext());
  assert.equal(await source.inputValue('#builder'),'none');assert(!await source.locator('#chestHost').isVisible());assert(!await source.locator('#mraHost').isVisible());
  await source.selectOption('#builder','chest');assert(await source.locator('#chestReport').isVisible());assert(!await source.locator('#mraHost').isVisible());assert(!await source.locator('#chestPanel > summary').isVisible());
