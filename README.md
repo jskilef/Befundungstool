@@ -28,6 +28,9 @@ Without an AI provider selected, the app makes no network requests.
 - Providers: OpenAI, Google Gemini, any OpenAI-compatible API (including local servers), or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
 - Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*.
 
+**Only what you need**
+- Gear → *Allgemein* → *Funktionen*: switch off report builders, dictation, the study/patient/date fields, AI review or the macro sidebar. Hidden tools keep their data. Without study/patient/date, *Befund kopieren* and *Exportieren* contain only the report sections, ready to paste.
+
 **Settings and appearance**
 - *Konfiguration speichern/laden*: one password-encrypted file with everything: macros, templates, favorites, preferences, AI settings and API keys (AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations; passwords of at least 12 characters, not recoverable). Loading asks for the password and restores the keys into memory. By default an encrypted copy of the AI settings and keys is also kept in the browser, so the next session only asks for the password (*Später* skips it, *Vergessen* deletes the copy; manage it under gear → *KI*). Also imports radnote configuration and macro files and Report Studio settings files (plain or encrypted). Report text is never part of a settings file.
 - Material Design 3 interface with six themes: System, Studio Hell, Schiefer Dunkel, Mitternacht, Kobalt Hell, Kobalt Dunkel. The Roboto font is embedded, so the app looks the same offline.

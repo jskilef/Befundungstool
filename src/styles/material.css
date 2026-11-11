@@ -240,6 +240,24 @@ html[data-theme=dark]{--md-sys-elevation-1:0 1px 2px rgb(0 0 0/.5),0 1px 3px 1px
 :root[data-palette][data-theme] .vault-box h3{font-size:16px;line-height:24px;font-weight:500;margin:0}
 :root[data-palette][data-theme] .vault-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 :root[data-palette][data-theme] .check-row{display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;color:var(--md-sys-color-on-surface)}
+/* Optional tools switched off in Settings → General (html[data-off] lists them). */
+html[data-off~=builders] :is(.builder-control,.builder-area,.bar-divider){display:none!important}
+html[data-off~=dictation] :is(.dictation-action,.dictation-status){display:none!important}
+html[data-off~=meta] .meta{display:none!important}
+html[data-off~=ai] :is(#aiChipHost,#aiActionsHost,#aiBannerHost,.ai-inline,#tabNotes,[data-sheet-tab=ai]){display:none!important}
+html[data-off~=sidebar] .side{display:none!important}
+@media (min-width:901px){html[data-off~=sidebar] main{grid-template-columns:minmax(0,1fr)!important;max-width:1100px}}
+/* M3 switch. */
+:root[data-palette][data-theme] .feature-switches{border:0;padding:0;margin:8px 0 24px;min-width:0}
+:root[data-palette][data-theme] .feature-switches legend{font-size:16px;line-height:24px;font-weight:500;color:var(--md-sys-color-on-surface);padding:0}
+:root[data-palette][data-theme] .feature-switches .hint{margin:4px 0 8px}
+:root[data-palette][data-theme] .switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;margin:0;font-size:16px;line-height:24px;font-weight:400;letter-spacing:.5px;color:var(--md-sys-color-on-surface);cursor:pointer}
+:root[data-palette][data-theme] input[role=switch]{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:52px;height:32px;margin:0;border-radius:16px;border:2px solid var(--md-sys-color-outline);background:var(--md-sys-color-surface-container-highest);cursor:pointer;transition:background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),border-color var(--md-sys-motion-duration-short)}
+:root[data-palette][data-theme] input[role=switch]::before{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;background:var(--md-sys-color-outline);transition:all var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard)}
+:root[data-palette][data-theme] input[role=switch]:checked{background:var(--md-sys-color-primary);border-color:var(--md-sys-color-primary)}
+:root[data-palette][data-theme] input[role=switch]:checked::before{top:2px;left:22px;width:24px;height:24px;background:var(--md-sys-color-on-primary)}
+:root[data-palette][data-theme] input[role=switch]:focus-visible{outline:3px solid var(--md-sys-color-secondary);outline-offset:2px}
+
 @media (max-width:900px){
   :root[data-palette][data-theme] .side{position:static;max-height:none}
   :root[data-palette][data-theme] .report .template-control{position:static}

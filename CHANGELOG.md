@@ -22,5 +22,6 @@ First version, merging radnote 1.8.0 and Report Studio 1.6.0 into one standalone
 - AI Revise works per report section; proposals are applied only by explicit Replace/Append and respect frozen text and undo.
 - One settings file (`befundungstool-settings` v1), always saved password-encrypted with everything including API keys, with optional AI style notes per template. Imports radnote settings v1/v2, legacy macro files and Report Studio settings (plain and encrypted); Report Studio templates become field templates.
 - API keys are never written to browser storage in plaintext; an optional encrypted copy is unlocked by password once per session. Provider, model and endpoint are remembered.
+- Feature switches in Settings → General: hide report builders, dictation, study/patient/date (copy/export then omit the header), AI review or the macro sidebar; saved in preferences and the configuration file.
 - Reworked layout: app bar with AI status chip and settings sheet; sticky report toolbar with template, builder and AI actions; AI notes and suggestions inline under each section; side tabs for macros and AI notes.
 - Browser data moved to `befundungstool-*` keys with a one-time copy of existing radnote data.

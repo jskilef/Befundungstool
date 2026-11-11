@@ -42,6 +42,16 @@ const empty = { macros: [], templates: [], chestFavorites: [], settings: { ...se
   assert.equal(S.parse([{ title: 'Alt', code: '.alt', text: 'Text' }], newId).kind, 'macros');
   assert.throws(() => S.parse({ ...plain, version: 2 }, newId), /Unsupported configuration version/);
 
+  // Feature switches: optional booleans for known tools only.
+  const withFeatures = JSON.parse(JSON.stringify(plain));
+  withFeatures.settings.features = { builders: false, meta: false };
+  assert.deepEqual(S.parse(withFeatures, newId).settings.features, { builders: false, meta: false });
+  for (const bad of [{ builders: 'no' }, { unknown: true }, []]) {
+    const broken = JSON.parse(JSON.stringify(plain));
+    broken.settings.features = bad;
+    assert.throws(() => S.parse(broken, newId));
+  }
+
   // Invalid AI sections are rejected before anything is applied.
   const badAi = [
     a => a.provider = 'unknown',
