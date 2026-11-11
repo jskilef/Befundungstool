@@ -53,7 +53,9 @@ function applySettings(s){$('theme').value=s.theme;applyTheme();language=s.langu
 let builderStates=Object.fromEntries(ExaminationRegistry.ids.map(id=>[id,BuilderState.empty(id)])),builderUIs={},builderFavorites=BuilderPersistence.empty();try{builderFavorites=BuilderPersistence.load(localStorage)}catch(e){}
 let mraState=MRAEngine.emptyState(),mraUI=null;
 let chestState=ChestState.empty(),chestUI=null;
-const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');function applyTheme(){const choice=$('theme').value;document.documentElement.dataset.theme=choice==='auto'?(themeMedia.matches?'dark':'light'):choice;try{localStorage.setItem('befundungstool-theme',choice)}catch(e){}}try{const choice=localStorage.getItem('befundungstool-theme');if(['auto','light','dark'].includes(choice))$('theme').value=choice}catch(e){}$('theme').onchange=()=>{applyTheme();storePreferences()};themeMedia.addEventListener('change',applyTheme);applyTheme();
+const themeMedia=window.matchMedia('(prefers-color-scheme: dark)');// data-theme is the colour family (light/dark) that module styles use; data-palette selects one of the six themes.
+const darkPalettes=['dark','midnight','cobalt-dark'],themeChoices=['auto','light','dark','midnight','cobalt-light','cobalt-dark'];
+function applyTheme(){const choice=$('theme').value;const palette=choice==='auto'?(themeMedia.matches?'dark':'light'):choice;document.documentElement.dataset.palette=palette;document.documentElement.dataset.theme=darkPalettes.includes(palette)?'dark':'light';try{localStorage.setItem('befundungstool-theme',choice)}catch(e){}}try{const choice=localStorage.getItem('befundungstool-theme');if(themeChoices.includes(choice))$('theme').value=choice}catch(e){}$('theme').onchange=()=>{applyTheme();storePreferences()};themeMedia.addEventListener('change',applyTheme);applyTheme();
 const builtins={structured:['indication','technique','comparison','findings','impression'],chest:['findings'],skeletal:['findings'],combined:['indication','technique','comparison','combined'],freestyle:['freestyle']};
 
 let undoStack=[],redoStack=[],historyCurrent=null,restoringHistory=false;

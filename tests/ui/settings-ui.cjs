@@ -117,8 +117,20 @@ const reportStudio = {
     assert.equal(await fresh.locator('#template option[data-custom]').textContent(), 'General radiology');
     assert(await fresh.locator('#includeKeysRow').isVisible());
 
+    // Six themes (D6): colour family for modules, palette for the theme; persisted and exported.
+    await page.selectOption('#theme', 'cobalt-dark');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+    assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-dark');
+    await page.selectOption('#theme', 'cobalt-light');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
+    await page.locator('#includeKeys').uncheck();
+    assert.equal((await save()).data.settings.theme, 'cobalt-light');
+    await page.reload();
+    assert.equal(await page.inputValue('#theme'), 'cobalt-light');
+    assert.equal(await page.locator('html').getAttribute('data-palette'), 'cobalt-light');
+
     assert.deepEqual(errors, []);
-    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, Export ohne/mit Schlüssel bestanden.');
+    console.log('Einstellungen UI: radnote-Migration, verschlüsselter Report-Studio-Import, KI-Stilhinweise, Export ohne/mit Schlüssel, Themes bestanden.');
   } finally {
     await browser.close();
   }

@@ -15,6 +15,7 @@ const slots = {
   CHEST_STYLES: () => read('src/chest/styles.css'),
   BUILDER_STYLES: () => read('src/builders/styles.css'),
   AI_STYLES: () => read('src/styles/ai.css'),
+  THEME_STYLES: () => read('src/styles/themes.css'),
   BOOT_SCRIPTS: () => scripts(['src/core/storage-migration.js']),
   EXAM_SHARED_SCRIPTS: () => scripts(['src/builders/preview.js', 'src/dictation/compat.js']),
   MRA_SCRIPTS: () => scripts(['src/mra/anatomy.js', 'src/mra/engine.js', 'src/mra/ui.js']),
