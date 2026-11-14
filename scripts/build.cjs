@@ -46,7 +46,7 @@ const slots = {
     'src/builders/persistence.js', 'src/builders/ui.js'
   ]),
   SETTINGS_SCRIPTS: () => scripts(['src/settings/config.js', 'src/settings/crypto.js', 'src/settings/vault.js', 'src/settings/unified.js']),
-  AI_SCRIPTS: () => scripts(['src/ai/diff.js', 'src/ai/providers.js', 'src/ai/contract.js', 'src/ai/local.js', 'src/ai/panel.js']),
+  AI_SCRIPTS: () => scripts(['src/ai/diff.js', 'src/ai/providers.js', 'src/ai/contract.js', 'src/ai/local.js', 'src/ai/gguf.js', 'src/ai/panel.js']),
   CORE_SCRIPTS: () => read('src/core/editor.js').replace(/\n$/, '')
 };
 

@@ -27,6 +27,8 @@ separate works with their own terms, not relicensed under the project's MIT lice
 | OpenAI API protocol definitions within WebLLM | [Upstream copy shipped with WebLLM 0.2.85](https://github.com/mlc-ai/web-llm/blob/v0.2.85/licenses/license.openai_node.txt) | Apache-2.0; [upstream text](licenses/web-llm-openai-protocols-LICENSE.txt). This is not a dependency on the OpenAI SDK in Befundungstool. |
 | Transformers.js, Hugging Face | [`@huggingface/transformers` 3.8.1](https://github.com/huggingface/transformers.js/tree/3.8.1) | Apache-2.0; [upstream text](licenses/transformers-js-3.8.1-LICENSE.txt) |
 | ONNX Runtime Web, Microsoft and contributors | `1.22.0-dev.20250409-89f8206ba4`, declared in [Transformers.js 3.8.1](https://github.com/huggingface/transformers.js/blob/3.8.1/package.json) | MIT; [Microsoft copyright and license](licenses/onnxruntime-LICENSE.txt), plus the [upstream third-party notice collection](licenses/onnxruntime-ThirdPartyNotices.txt) |
+| wllama (llama.cpp WebAssembly binding), Xuan Son Nguyen | [`@wllama/wllama` 3.8.1](https://github.com/ngxson/wllama) | MIT; [upstream text](licenses/wllama-LICENSE.txt). Loaded from jsDelivr only when the GGUF browser mode is used. |
+| llama.cpp / ggml, The ggml authors | Compiled into wllama | MIT; [upstream text](licenses/llama.cpp-LICENSE.txt) |
 
 WebLLM's published bundle also incorporates runtime/tokenizer/grammar components
 and references dependencies such as loglevel. Transformers.js incorporates or

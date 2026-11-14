@@ -38,7 +38,8 @@ function createServer({ upstreamFetch = fetch, root = defaultRoot() } = {}) {
     if (req.method === 'GET' && ['/', '/index.html', '/befundungstool.html'].includes(req.url)) {
       const html = fs.readFileSync(path.join(root, 'befundungstool.html'), 'utf8');
       const session = `<script>window.BefundungstoolLocal=Object.freeze({token:${JSON.stringify(token)}});</script>\n<script>`;
-      res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8' });
+      // Cross-origin isolation: lets browser models (llama.cpp, ONNX) use several CPU threads.
+      res.writeHead(200, { 'Content-Type': 'text/html;charset=utf-8', 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'credentialless' });
       return res.end(html.replace('<script>', () => session));
     }
     if (req.method === 'GET' && Object.hasOwn(assets, req.url)) {

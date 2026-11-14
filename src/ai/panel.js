@@ -105,6 +105,17 @@
   });
 
   Object.assign(DE, {
+    'Browser local · GGUF model file (llama.cpp)': 'Lokal im Browser · GGUF-Modelldatei (llama.cpp)', 'GGUF model file': 'GGUF-Modelldatei',
+    'Choose a .gguf model file, for example from the LM Studio models folder. The file stays on this device; only the llama.cpp runtime is loaded from jsDelivr. Uses WebGPU when available, otherwise the CPU (slower). Choose the file again after reopening the app.': 'Eine .gguf-Modelldatei wählen, zum Beispiel aus dem LM-Studio-Modellordner. Die Datei bleibt auf diesem Gerät; nur die llama.cpp-Laufzeit wird von jsDelivr geladen. Nutzt WebGPU, wenn verfügbar, sonst die CPU (langsamer). Nach erneutem Öffnen der App die Datei erneut wählen.',
+    'GGUF model selected:': 'GGUF-Modell gewählt:', 'parts': 'Teile', 'model file missing': 'Modelldatei fehlt',
+    'Choose a GGUF model file.': 'Eine GGUF-Modelldatei wählen.', 'Not a GGUF file': 'Keine GGUF-Datei', 'Invalid GGUF file': 'Ungültige GGUF-Datei',
+    'Unsupported GGUF version': 'Nicht unterstützte GGUF-Version', 'Unsupported GGUF tensor order': 'Nicht unterstützte GGUF-Tensorreihenfolge',
+    'This GGUF file is already split. Select the first part instead.': 'Diese GGUF-Datei ist bereits geteilt. Stattdessen den ersten Teil wählen.',
+    'The llama.cpp browser runtime could not load from jsDelivr. Check network access or workplace download restrictions.': 'Die llama.cpp-Browserlaufzeit konnte nicht von jsDelivr geladen werden. Netzwerkzugang oder Download-Beschränkungen am Arbeitsplatz prüfen.',
+    'The model does not fit into browser memory. Close other tabs or choose a smaller model.': 'Das Modell passt nicht in den Browserspeicher. Andere Tabs schließen oder ein kleineres Modell wählen.',
+    'The browser runtime could not load this model. Its architecture may not be supported yet; LM Studio can still run it.': 'Die Browserlaufzeit konnte dieses Modell nicht laden. Die Architektur wird eventuell noch nicht unterstützt; LM Studio kann es weiterhin ausführen.'
+  });
+  Object.assign(DE, {
     'LM Studio (on this device)': 'LM Studio (auf diesem Gerät)', 'Load models': 'Modelle laden', 'Loading models…': 'Modelle werden geladen…',
     'Models found:': 'Modelle gefunden:', 'No models found.': 'Keine Modelle gefunden.',
     'Close AI results': 'KI-Ergebnisse schließen', 'AI results closed.': 'KI-Ergebnisse geschlossen.',
@@ -130,6 +141,9 @@
     const t = key => bridge.translate(key);
     const Providers = root.AiProviders, Contract = root.AiContract, Diff = root.AiDiff, Local = root.AiLocal;
     const isLocal = provider => Local.LOCAL_PROVIDERS.includes(provider);
+    // GGUF files run in the browser through llama.cpp (wllama); like the other browser modes, nothing leaves the device.
+    const isOnDevice = provider => isLocal(provider) || provider === 'gguf';
+    const Gguf = root.AiGguf;
     // Served by server/local-server.cjs: API calls go through its /api proxy with the session token.
     const launcher = !!root.BefundungstoolLocal?.token && root.location?.protocol === 'http:' && root.location.hostname === '127.0.0.1';
 
@@ -146,7 +160,11 @@
     const field = (label, control) => node('label', {}, [node('span', { text: label }), control]);
 
     const ui = {
-      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API'), option('lmstudio', 'LM Studio (on this device)'), option('webllm', 'Browser local · GPU (WebGPU)'), option('wasm', 'Browser local · CPU (WebAssembly)')]),
+      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API'), option('lmstudio', 'LM Studio (on this device)'), option('webllm', 'Browser local · GPU (WebGPU)'), option('wasm', 'Browser local · CPU (WebAssembly)'), option('gguf', 'Browser local · GGUF model file (llama.cpp)')]),
+      ggufFile: node('input', { id: 'aiGgufFile', type: 'file', accept: '.gguf' }),
+      ggufStatus: node('p', { id: 'aiGgufStatus', class: 'hint' }),
+      ggufProgress: node('p', { id: 'aiGgufProgress', class: 'hint', role: 'status' }),
+      ggufUnload: node('button', { id: 'aiGgufUnload', type: 'button', text: 'Unload browser model' }),
       localModel: node('select', { id: 'aiLocalModel' }),
       dtype: node('select', { id: 'aiCustomDtype' }, Local.LOCAL_DTYPES.map(d => option(d, d))),
       folder: node('input', { id: 'aiModelFolder', type: 'file', webkitdirectory: true, multiple: true }),
@@ -205,6 +223,11 @@
       node('p', { class: 'hint', text: 'Optional. Report text is sent only when you click Review, Revise or Test connection.' }),
       node('div', { class: 'ai-grid' }, [field('Provider', ui.provider), ui.modelField, ui.localModelField, field('Report language', ui.language)]),
       ui.apiRows, ui.localRows,
+      ui.ggufRows = node('div', { id: 'aiGgufRows' }, [
+        node('p', { class: 'hint', text: 'Choose a .gguf model file, for example from the LM Studio models folder. The file stays on this device; only the llama.cpp runtime is loaded from jsDelivr. Uses WebGPU when available, otherwise the CPU (slower). Choose the file again after reopening the app.' }),
+        field('GGUF model file', ui.ggufFile), ui.ggufStatus,
+        node('div', { class: 'ai-actions' }, [ui.ggufUnload]), ui.ggufProgress
+      ]),
       ui.test,
       node('details', { id: 'aiAdvanced' }, [
         node('summary', { text: 'Advanced settings' }),
@@ -235,6 +258,14 @@
 
     // Browser-local models: one runner owns the worker; folder loads are raced by `folderRevision`.
     let progressMessage = { key: '', suffix: '' }, folderMessage = { key: '', suffix: '' }, folderRevision = 0;
+    let ggufProgress = { key: '', suffix: '' }, ggufStatus = { key: '', suffix: '', error: false };
+    const ggufRunner = Gguf.createRunner({ onProgress: (key, suffix = '') => { ggufProgress = { key, suffix }; ui.ggufProgress.textContent = t(key) + suffix; } });
+    const ggufKey = () => { const f = ggufRunner.file; return f ? [f.name, f.size, f.lastModified].join(':') : ''; };
+    function setGgufStatus(key, suffix = '', error = false) {
+      ggufStatus = { key, suffix, error };
+      ui.ggufStatus.textContent = key ? t(key) + suffix : '';
+      ui.ggufStatus.classList.toggle('ai-warning', error);
+    }
     const runner = Local.createRunner({ onProgress: (key, suffix = '') => { progressMessage = { key, suffix }; ui.progress.textContent = t(key) + suffix; } });
     function setFolderStatus(key, suffix = '', error = false) {
       folderMessage = { key, suffix };
@@ -245,6 +276,7 @@
     // Local presets fall back to the first model of their list.
     function profileFor(provider) {
       const stored = settings.profiles[provider];
+      if (provider === 'gguf') return { endpoint: '', model: ggufRunner.file?.name || stored?.model || '' };
       if (isLocal(provider)) {
         const models = Local.modelsFor(provider);
         return { endpoint: '', model: models.includes(stored?.model) ? stored.model : models[0] };
@@ -253,6 +285,7 @@
     }
 
     function currentProfile(provider) {
+      if (provider === 'gguf') return { endpoint: '', model: ggufRunner.file?.name || settings.profiles.gguf?.model || '' };
       if (isLocal(provider)) return { endpoint: '', model: ui.localModel.value };
       return { endpoint: ui.endpoint.value.trim(), model: ui.model.value.trim(), ...(ui.key.value.trim() ? { apiKey: ui.key.value.trim() } : {}) };
     }
@@ -295,8 +328,10 @@
     function syncControls() {
       const provider = ui.provider.value, none = provider === 'none', local = isLocal(provider);
       const custom = local && ui.localModel.value === Local.CUSTOM_MODEL;
-      ui.apiRows.hidden = none || local;
-      ui.modelField.hidden = local || none;
+      const gguf = provider === 'gguf';
+      ui.apiRows.hidden = none || local || gguf;
+      ui.modelField.hidden = local || none || gguf;
+      ui.ggufRows.hidden = !gguf;
       ui.test.hidden = none;
       const lm = provider === 'lmstudio';
       ui.keyField.hidden = lm;
@@ -321,15 +356,15 @@
       ui.banner.hidden = none && !statusMessage.key;
     }
 
-    const PROVIDER_NAMES = { openai: 'OpenAI', gemini: 'Gemini', compatible: 'API', lmstudio: 'LM Studio', webllm: 'on this device', wasm: 'on this device' };
+    const PROVIDER_NAMES = { openai: 'OpenAI', gemini: 'Gemini', compatible: 'API', lmstudio: 'LM Studio', webllm: 'on this device', wasm: 'on this device', gguf: 'on this device' };
     function renderChip() {
       const provider = ui.provider.value;
       const needsKey = ['openai', 'gemini'].includes(provider) && !ui.key.value.trim();
-      const state = provider === 'none' ? 'off' : needsKey && bridge.vaultState() === 'locked' ? 'locked' : needsKey ? 'nokey' : 'on';
+      const state = provider === 'none' ? 'off' : needsKey && bridge.vaultState() === 'locked' ? 'locked' : needsKey ? 'nokey' : provider === 'gguf' && !ggufRunner.file ? 'nofile' : 'on';
       ui.chip.dataset.state = state;
-      const model = isLocal(provider) ? '' : ui.model.value.trim();
+      const model = provider === 'gguf' ? (ggufRunner.file?.name || '').replace(/\.gguf$/i, '') : isLocal(provider) ? '' : ui.model.value.trim();
       ui.chip.textContent = state === 'off' ? t('AI off') : state === 'locked' ? t('AI locked') :
-        t('AI:') + ' ' + t(PROVIDER_NAMES[provider]) + (model ? ' · ' + model : '') + (state === 'nokey' ? ' · ' + t('key missing') : '');
+        t('AI:') + ' ' + t(PROVIDER_NAMES[provider]) + (model ? ' · ' + model : '') + (state === 'nokey' ? ' · ' + t('key missing') : state === 'nofile' ? ' · ' + t('model file missing') : '');
       ui.chip.title = state === 'locked' ? t('Unlock saved configuration') : t('AI settings');
     }
 
@@ -337,6 +372,7 @@
       const provider = ui.provider.value;
       if (provider === 'none') { ui.destination.textContent = t('No AI provider selected. Nothing is sent.'); return; }
       if (isLocal(provider)) { ui.destination.textContent = t('Report processing: on this device') + ' · ' + (provider === 'wasm' ? 'CPU / WASM' : 'WebGPU'); return; }
+      if (provider === 'gguf') { ui.destination.textContent = t('Report processing: on this device') + ' · GGUF · ' + (root.navigator?.gpu ? 'WebGPU' : 'CPU'); return; }
       let origin;
       try {
         const url = new URL(Providers.validateURL(ui.endpoint.value.trim()));
@@ -351,6 +387,7 @@
       readFormFor(settings.provider);
       ++folderRevision;
       runner.stop();
+      if (ui.provider.value !== 'gguf' && ggufRunner.loaded) ggufRunner.stop();
       settings.provider = ui.provider.value;
       fillForm();
       readForm();
@@ -371,6 +408,21 @@
       }
     }
     ui.loadModels.onclick = loadModels;
+    ui.ggufUnload.onclick = () => ggufRunner.stop();
+    ui.ggufFile.addEventListener('change', async event => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      try {
+        const info = await Gguf.parse(file);
+        ggufRunner.setFile(file);
+        const parts = Math.max(1, Gguf.plan(info).length);
+        setGgufStatus('GGUF model selected:', ' ' + file.name + ' · ' + (file.size / 2 ** 30).toFixed(1) + ' GB · ' + (info.kvs.get('general.architecture') || '?') + (parts > 1 ? ' · ' + parts + ' ' + t('parts') : ''));
+        readForm();
+      } catch (error) {
+        setGgufStatus(error.message, '', true);
+      }
+    });
     // Saves the outgoing provider's fields before switching.
     function readFormFor(provider) {
       if (provider && provider !== 'none') settings.profiles[provider] = currentProfile(provider);
@@ -452,7 +504,7 @@
         endpoint: settings.provider === 'none' ? '' : profileFor(settings.provider).endpoint,
         model: settings.provider === 'none' ? '' : profileFor(settings.provider).model,
         prompt: mode === 'review' ? ui.reviewPrompt.value : ui.revisePrompt.value,
-        modelFiles: runner.bundle && runner.bundle.model === profileFor(settings.provider).model ? runner.bundle.revision : 0
+        modelFiles: settings.provider === 'gguf' ? ggufKey() : runner.bundle && runner.bundle.model === profileFor(settings.provider).model ? runner.bundle.revision : 0
       };
     }
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -610,7 +662,7 @@
       ui.rawBox.hidden = true;
       ui.raw.textContent = '';
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), isLocal(settings.provider) ? LOCAL_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), isOnDevice(settings.provider) ? LOCAL_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
       draftEditedDuringRequest = false;
       setBusy(controller);
       setStatus(mode === 'review' ? 'Reviewing…' : 'Revising…');
@@ -620,7 +672,7 @@
         const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm' });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
         const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode));
-        const text = Providers.responseText(data, isLocal(provider) ? 'compatible' : provider);
+        const text = Providers.responseText(data, isOnDevice(provider) ? 'compatible' : provider);
         let parsed;
         try {
           parsed = Contract.parse(text, mode, sections.map(s => s.id));
@@ -670,6 +722,7 @@
 
     // API providers go through fetch; browser-local providers through the worker runner. Never both.
     function send(provider, endpoint, key, model, system, input, signal, schema) {
+      if (provider === 'gguf') return ggufRunner.request([{ role: 'system', content: system }, { role: 'user', content: input }], { schema, signal });
       if (isLocal(provider)) return runner.request(Local.buildLocalRequest(provider, model, system, input), signal);
       const request = Providers.buildRequest(provider, endpoint, key, model, system, input, { schema });
       return Providers.sendRequest(request, {
@@ -680,7 +733,7 @@
 
     ui.test.onclick = async () => {
       if (busy) return;
-      const local = isLocal(settings.provider);
+      const local = isOnDevice(settings.provider);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), local ? LOCAL_TIMEOUT_MS : TEST_TIMEOUT_MS);
       setBusy(controller);
@@ -704,6 +757,8 @@
       for (const rootNode of [...roots, ...inlineCards, ...inlineNotes]) rootNode.querySelectorAll('[data-ai-text]').forEach(e => { e.textContent = t(e.dataset.aiText); });
       renderChip();
       ui.progress.textContent = progressMessage.key ? t(progressMessage.key) + progressMessage.suffix : '';
+      ui.ggufProgress.textContent = ggufProgress.key ? t(ggufProgress.key) + ggufProgress.suffix : '';
+      setGgufStatus(ggufStatus.key, ggufStatus.suffix, ggufStatus.error);
       setFolderStatus(folderMessage.key, folderMessage.suffix, ui.folderStatus.classList.contains('ai-warning'));
       renderDestination();
       setStatus(statusMessage.key, statusMessage.error, statusMessage.suffix);

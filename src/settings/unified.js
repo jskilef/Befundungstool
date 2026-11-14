@@ -13,8 +13,8 @@
 
   const FORMAT = 'befundungstool-settings';
   const VERSION = 1;
-  const PROVIDERS = ['none', 'openai', 'gemini', 'compatible', 'lmstudio', 'webllm', 'wasm'];
-  const LOCAL_PROVIDERS = ['webllm', 'wasm'];
+  const PROVIDERS = ['none', 'openai', 'gemini', 'compatible', 'lmstudio', 'webllm', 'wasm', 'gguf'];
+  const LOCAL_PROVIDERS = ['webllm', 'wasm', 'gguf'];
   const REPORT_LANGUAGES = ['Same as original', 'German', 'English'];
   const LOCAL_DTYPES = ['fp32', 'fp16', 'q8', 'int8', 'uint8', 'q4', 'q4f16', 'bnb4'];
   const MAX_INSTRUCTIONS = 20000;

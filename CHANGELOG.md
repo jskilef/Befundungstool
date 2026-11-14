@@ -22,6 +22,7 @@ First version, merging radnote 1.8.0 and Report Studio 1.6.0 into one standalone
 - AI Revise works per report section; proposals are applied only by explicit Replace/Append and respect frozen text and undo.
 - One settings file (`befundungstool-settings` v1), always saved password-encrypted with everything including API keys, with optional AI style notes per template. Imports radnote settings v1/v2, legacy macro files and Report Studio settings (plain and encrypted); Report Studio templates become field templates.
 - API keys are never written to browser storage in plaintext; an optional encrypted copy is unlocked by password once per session. Provider, model and endpoint are remembered.
+- GGUF models directly in the browser: llama.cpp via wllama 3.8.1 (WebGPU or CPU), model file chosen locally, files over 2 GB split in the browser without copying, structured output enforced by JSON schema.
 - LM Studio provider: local GGUF models via LM Studio's server, model list, no key, structured output enforced with a JSON schema; works directly (CORS on) or through the launcher.
 - Empty report sections are no longer sent to the AI.
 - Applied or discarded suggestions disappear; "KI-Ergebnisse schließen" clears all AI results without a new report.

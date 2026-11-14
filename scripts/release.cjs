@@ -15,6 +15,7 @@ function releaseFiles() {
     ['befundungstool.html', 'dist/befundungstool.html'],
     ['index.html', 'dist/index.html'],
     ['manifest.webmanifest', 'dist/manifest.webmanifest'],
+    ['coi-sw.js', 'dist/coi-sw.js'],
     ['icons/icon-192.png', 'dist/icons/icon-192.png'],
     ['icons/icon-512.png', 'dist/icons/icon-512.png'],
     ['local-server.cjs', 'server/local-server.cjs'],

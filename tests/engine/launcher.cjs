@@ -17,7 +17,10 @@ fs.writeFileSync(path.join(root, 'manifest.webmanifest'), '{}');
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
-    const page = await (await fetch(base + '/')).text();
+    const pageResponse = await fetch(base + '/');
+    assert.equal(pageResponse.headers.get('cross-origin-opener-policy'), 'same-origin', 'isolation for multi-threaded browser models');
+    assert.equal(pageResponse.headers.get('cross-origin-embedder-policy'), 'credentialless');
+    const page = await pageResponse.text();
     const token = page.match(/token:"([0-9a-f]{64})"/)[1];
     assert(page.indexOf('BefundungstoolLocal') < page.indexOf('console.log(1)'), 'token script precedes app scripts');
     assert.equal((await fetch(base + '/manifest.webmanifest')).headers.get('content-type'), 'application/manifest+json');

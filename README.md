@@ -28,6 +28,12 @@ Without an AI provider selected, the app makes no network requests.
 - Providers: OpenAI, Google Gemini, **LM Studio** (your own GGUF models on this PC), any OpenAI-compatible API, or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
 - Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*.
 
+**Own GGUF models directly in the browser**
+- Gear → *KI* → *Lokal im Browser · GGUF-Modelldatei (llama.cpp)*, then choose the `.gguf` file (e.g. from `%USERPROFILE%\.lmstudio\models`). No LM Studio, no server, no key; the file never leaves the PC. Only the llama.cpp runtime (wllama 3.8.1) is loaded from jsDelivr on first use.
+- Files over 2 GB are split into parts inside the browser automatically (no copy, no conversion).
+- Uses WebGPU when the browser offers it, otherwise the CPU (several threads when the page is cross-origin isolated: automatically through the launcher, and on the hosted site via a small service worker after one reload; a directly opened HTML file runs single-threaded and is much slower). Expect roughly 40–90 s per revision for 3–4B models; LM Studio is faster.
+- Choose the file again after reopening the app (browsers do not keep file access).
+
 **Own models with LM Studio**
 - In LM Studio: *Developer* → start the server (port 1234) and load a model. In Befundungstool: gear → *KI* → *LM Studio (auf diesem Gerät)*; the model list loads automatically, no key needed. Report text stays on this PC.
 - The browser needs LM Studio's **CORS** option (server settings) when the app runs from the website or a local file. Alternatively start the app with `npm start` (local launcher), which works without CORS.
