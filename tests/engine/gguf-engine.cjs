@@ -63,9 +63,15 @@ const { buildGguf, readGguf } = require('../helpers/gguf.cjs');
   await runner.request([{ role: 'user', content: 'x' }], { schema });
   assert.equal(calls[0][1], 'https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/esm/index.js');
   assert.equal(calls[1][1], 'https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/esm/wasm/wllama.wasm');
-  assert.deepEqual(calls[2], ['load', ['model-00001-of-00001.gguf'], 4096]);
+  assert.deepEqual(calls[2], ['load', ['model-00001-of-00001.gguf'], 8192]);
   assert.deepEqual(calls[3][1].response_format.json_schema.schema, schema);
+  assert.equal(calls[3][1].max_tokens, 4096, 'short prompt: full output budget');
+  assert.equal(calls[3][1].penalty_repeat, 1.1);
+  assert.equal(calls[2][2], 8192, 'context');
   assert(progress.includes('Browser model ready. (CPU)'));
+  // Long prompts shrink the output budget so prompt + answer fit the context.
+  await runner.request([{ role: 'user', content: 'x'.repeat(15000) }]);
+  assert.equal(calls.at(-1)[1].max_tokens, 8192 - Math.ceil(15000 / 3) - 64 - 128);
   // Same file: no reload. Different file: unload and reload.
   await runner.request([{ role: 'user', content: 'y' }]);
   assert.equal(calls.filter(c => c[0] === 'load').length, 1);

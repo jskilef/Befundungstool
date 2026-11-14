@@ -31,13 +31,16 @@
   const KNOWN_CODES = ['tier_not_allowed', 'rate_limit_exceeded', 'quota_exceeded', 'insufficient_quota', 'model_not_allowed', 'invalid_api_key', 'permission_denied', '1300'];
   const MAX_RETRY_AFTER_MS = 30000;
 
+  const LENGTH_HINT = "The answer reached the model's length limit and was cut off. Try a shorter report or Review instead of Revise. With LM Studio, increase the model's context length.";
+
   class ProviderError extends Error {
-    constructor(hint, { status = null, code = null } = {}) {
+    constructor(hint, { status = null, code = null, partial = null } = {}) {
       super(hint);
       this.name = 'ProviderError';
       this.hint = hint;
       this.status = status;
       this.code = code;
+      this.partial = typeof partial === 'string' && partial ? partial : null;
     }
   }
 
@@ -138,12 +141,14 @@
     if (provider === 'gemini') {
       const candidate = data?.candidates?.[0];
       if (!candidate) throw new ProviderError('Gemini returned no candidate. The response may be blocked.');
+      if (candidate.finishReason === 'MAX_TOKENS') throw new ProviderError(LENGTH_HINT, { code: 'length', partial: candidate.content?.parts?.map(p => p.text || '').join('') });
       if (candidate.finishReason && candidate.finishReason !== 'STOP') throw new ProviderError('The model did not finish normally.', { code: String(candidate.finishReason).slice(0, 40) });
       const text = candidate.content?.parts?.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
       if (!text) throw new ProviderError('The API returned no text. Check model compatibility.');
       return text;
     }
     const choice = data?.choices?.[0];
+    if (choice?.finish_reason === 'length') throw new ProviderError(LENGTH_HINT, { code: 'length', partial: choice.message?.content });
     if (choice?.finish_reason && choice.finish_reason !== 'stop') throw new ProviderError('The model did not finish normally.', { code: String(choice.finish_reason).slice(0, 40) });
     if (typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw new ProviderError('The API returned no text. Check model compatibility.');
     return choice.message.content;

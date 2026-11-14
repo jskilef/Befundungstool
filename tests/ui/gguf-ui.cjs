@@ -73,7 +73,8 @@ export class Wllama {
     await waitStatus('Überarbeitung abgeschlossen');
     const state = await page.evaluate(() => window.__wllama);
     assert.equal(state.paths.default, 'https://cdn.jsdelivr.net/npm/@wllama/wllama@3.8.1/esm/wasm/wllama.wasm');
-    assert.deepEqual(state.loads, [{ names: ['model-00001-of-00001.gguf'], n_ctx: 4096 }]);
+    assert.deepEqual(state.loads, [{ names: ['model-00001-of-00001.gguf'], n_ctx: 8192 }]);
+    assert.deepEqual(state.chats[0].response_format.json_schema.schema.properties.sections.items.properties.id.enum, ['findings'], 'schema bound to the sent sections');
     assert.equal(state.chats[0].response_format.type, 'json_schema');
     assert.deepEqual(JSON.parse(state.chats[0].messages[1].content).sections.map(s => s.id), ['findings']);
     assert.equal(await page.locator('.ai-section[data-section=findings] ins').textContent(), 'groß');

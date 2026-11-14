@@ -155,7 +155,8 @@
      (multi-threaded only when the page is cross-origin isolated, e.g. through the local launcher). */
   const WLLAMA_VERSION = '3.8.1';
   const WLLAMA_BASE = `https://cdn.jsdelivr.net/npm/@wllama/wllama@${WLLAMA_VERSION}/esm/`;
-  const CONTEXT_TOKENS = 4096;
+  // 8192 fits the radgen 3–4B models in browser memory (tested); long reports need the room.
+  const CONTEXT_TOKENS = 8192;
 
   function abortError() {
     const e = new Error('Cancelled');
@@ -201,7 +202,13 @@
       return instance;
     }
 
-    async function request(messages, { schema, signal, maxTokens = 1024 } = {}) {
+    // Output budget: what the context leaves after the prompt (≈ 3 characters per token, conservative).
+    function outputBudget(messages) {
+      const promptTokens = Math.ceil(messages.reduce((n, m) => n + String(m.content || '').length, 0) / 3) + 64;
+      return Math.max(256, Math.min(4096, CONTEXT_TOKENS - promptTokens - 128));
+    }
+
+    async function request(messages, { schema, signal, maxTokens = outputBudget(messages) } = {}) {
       if (busy) throw new Error('A browser model request is already running.');
       if (signal?.aborted) throw abortError();
       busy = true;
@@ -212,7 +219,7 @@
         if (signal?.aborted) throw abortError();
         onProgress('Generating locally…');
         const response = await instance.createChatCompletion({
-          messages, max_tokens: maxTokens, temperature: 0.2,
+          messages, max_tokens: maxTokens, temperature: 0.2, penalty_repeat: 1.1, penalty_last_n: 256, abortSignal: signal,
           ...(schema ? { response_format: { type: 'json_schema', json_schema: { name: 'befundungstool_result', strict: true, schema } } } : {})
         });
         if (signal?.aborted) throw abortError();

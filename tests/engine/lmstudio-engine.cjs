@@ -63,3 +63,24 @@ const { createServer } = require('../../server/local-server.cjs');
   for (const bad of [{ side: 'top' }, { width: 'huge' }, { macros: 'yes' }, { other: true }]) assert(!C.validSettings({ ...base2, sidebar: bad }));
   console.log('LM Studio: strukturierte Ausgabe, Modellliste direkt und über Starter, Einstellungsprüfung, Seitenleisten-Validierung bestanden.');
 })().catch(error => { console.error(error); process.exit(1); });
+
+// Bounded structured output (prevents endless note loops) and clear length errors.
+(async () => {
+  const sections = [{ id: 'findings', text: 'x'.repeat(100) }, { id: 'impression', text: 'y' }];
+  const revise = Contract.responseSchema('revise', { sections });
+  assert.deepEqual(revise.properties.sections.items.properties.id.enum, ['findings', 'impression']);
+  assert.equal(revise.properties.sections.maxItems, 2);
+  assert.equal(revise.properties.sections.items.properties.text.maxLength, 400);
+  assert.equal(revise.properties.issues.maxItems, 6);
+  assert.equal(revise.properties.issues.items.properties.detail.maxLength, 300);
+  assert.deepEqual(revise.properties.issues.items.properties.section.enum, ['findings', 'impression']);
+  assert.equal(revise.properties.changes.maxItems, 6);
+  assert.equal(Contract.responseSchema('review', { sections }).properties.sections, undefined);
+  assert.equal(Contract.responseSchema('revise').properties.sections.items.properties.text.maxLength, undefined, 'unbounded without sections');
+
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{"sections":[' } }] }, 'compatible'),
+    e => e.code === 'length' && e.partial === '{"sections":[' && /length limit/.test(e.hint));
+  assert.throws(() => P.responseText({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'abc' }] } }] }, 'gemini'), e => e.code === 'length' && e.partial === 'abc');
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'content_filter', message: { content: 'x' } }] }, 'openai'), e => e.code === 'content_filter' && e.partial === null);
+  console.log('Begrenzte Antworten: Schema-Grenzen, Längenabbruch mit Teilantwort bestanden.');
+})().catch(error => { console.error(error); process.exit(1); });

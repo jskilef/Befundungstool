@@ -48,13 +48,25 @@
   }
 
   // JSON Schema of the response contract, for servers that enforce structured output (LM Studio).
-  function responseSchema(mode) {
-    const issue = { type: 'object', properties: { category: { type: 'string' }, detail: { type: 'string' }, section: { type: 'string' } }, required: ['category', 'detail'] };
-    const properties = { issues: { type: 'array', items: issue }, changes: { type: 'array', items: { type: 'string' } } };
+  // With the sections sent, the schema also bounds the answer (grammar-constrained decoding cannot
+  // loop forever): known section ids only, limited note count/length, revised text at most about
+  // twice the original. Small local models otherwise repeat notes until the length limit.
+  const LIMITS = { issues: 6, changes: 6, category: 60, detail: 300, change: 200 };
+  function responseSchema(mode, { sections } = {}) {
+    const ids = sections?.map(s => s.id);
+    const sectionRef = ids?.length ? { type: 'string', enum: ids } : { type: 'string' };
+    const issue = { type: 'object', properties: { category: { type: 'string', maxLength: LIMITS.category }, detail: { type: 'string', maxLength: LIMITS.detail }, section: sectionRef }, required: ['category', 'detail'] };
+    const properties = {
+      issues: { type: 'array', items: issue, maxItems: LIMITS.issues },
+      changes: { type: 'array', items: { type: 'string', maxLength: LIMITS.change }, maxItems: LIMITS.changes }
+    };
     if (mode === 'review') return { type: 'object', properties, required: ['issues', 'changes'] };
+    const longest = Math.max(0, ...(sections || []).map(s => s.text.length));
+    const text = sections ? { type: 'string', maxLength: Math.min(20000, longest * 2 + 200) } : { type: 'string' };
+    const section = { type: 'object', properties: { id: sectionRef, text }, required: ['id', 'text'] };
     return {
       type: 'object',
-      properties: { sections: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } }, required: ['id', 'text'] } }, ...properties },
+      properties: { sections: { type: 'array', items: section, ...(ids ? { maxItems: ids.length } : {}) }, ...properties },
       required: ['sections', 'issues', 'changes']
     };
   }

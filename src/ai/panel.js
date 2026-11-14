@@ -105,6 +105,9 @@
   });
 
   Object.assign(DE, {
+    "The answer reached the model's length limit and was cut off. Try a shorter report or Review instead of Revise. With LM Studio, increase the model's context length.": 'Die Antwort hat die Längengrenze des Modells erreicht und wurde abgeschnitten. Einen kürzeren Befund oder „Prüfen“ statt „Überarbeiten“ versuchen. Bei LM Studio die Kontextlänge des Modells erhöhen.'
+  });
+  Object.assign(DE, {
     'Browser local · GGUF model file (llama.cpp)': 'Lokal im Browser · GGUF-Modelldatei (llama.cpp)', 'GGUF model file': 'GGUF-Modelldatei',
     'Choose a .gguf model file, for example from the LM Studio models folder. The file stays on this device; only the llama.cpp runtime is loaded from jsDelivr. Uses WebGPU when available, otherwise the CPU (slower). Choose the file again after reopening the app.': 'Eine .gguf-Modelldatei wählen, zum Beispiel aus dem LM-Studio-Modellordner. Die Datei bleibt auf diesem Gerät; nur die llama.cpp-Laufzeit wird von jsDelivr geladen. Nutzt WebGPU, wenn verfügbar, sonst die CPU (langsamer). Nach erneutem Öffnen der App die Datei erneut wählen.',
     'GGUF model selected:': 'GGUF-Modell gewählt:', 'parts': 'Teile', 'model file missing': 'Modelldatei fehlt',
@@ -671,7 +674,7 @@
         // Small CPU models follow the JSON contract more reliably with an example (as in Report Studio).
         const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm' });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
-        const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode));
+        const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode, { sections }));
         const text = Providers.responseText(data, isOnDevice(provider) ? 'compatible' : provider);
         let parsed;
         try {
@@ -707,6 +710,8 @@
           !changedMeanwhile && proposals ? ' (' + proposals + ' ' + t(proposals === 1 ? 'suggestion' : 'suggestions') + ')' : '');
         if (proposals) bridge.focusSection(revision.sections.find(s => s.proposed !== s.original).id, { scrollOnly: true });
       } catch (error) {
+        // A cut-off answer is shown as raw text so the user can see what the model produced.
+        if (error?.partial) { ui.raw.textContent = String(error.partial).slice(0, RAW_LIMIT); ui.rawBox.hidden = false; }
         if (mode === 'revise' && revision) revisionFailed = true;
         if (notes) notesFailed = true;
         refresh();
