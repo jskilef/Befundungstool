@@ -8,11 +8,13 @@
 })(globalThis, function () {
   'use strict';
 
-  const API_PROVIDERS = ['openai', 'gemini', 'compatible'];
+  // lmstudio: LM Studio's local OpenAI-compatible server (GGUF models stay on this PC; no key).
+  const API_PROVIDERS = ['openai', 'gemini', 'compatible', 'lmstudio'];
   const DEFAULT_ENDPOINTS = {
     openai: 'https://api.openai.com/v1/chat/completions',
     gemini: 'https://generativelanguage.googleapis.com/v1beta/models',
-    compatible: ''
+    compatible: '',
+    lmstudio: 'http://127.0.0.1:1234/v1/chat/completions'
   };
   const HINTS = {
     400: 'Check the API format, endpoint and model.',
@@ -53,7 +55,8 @@
     return url.href;
   }
 
-  function buildRequest(provider, endpoint, key, model, system, input) {
+  // options.schema: JSON Schema for structured output (LM Studio enforces it with a grammar).
+  function buildRequest(provider, endpoint, key, model, system, input, options = {}) {
     if (!API_PROVIDERS.includes(provider)) throw new ProviderError('Choose an AI provider.');
     if (!model) throw new ProviderError('Enter the model ID.');
     const headers = { 'Content-Type': 'application/json' };
@@ -77,6 +80,7 @@
       if (key) headers.Authorization = 'Bearer ' + key;
       body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: input }] };
       if (provider === 'openai') body.store = false;
+      if (provider === 'lmstudio' && options.schema) body.response_format = { type: 'json_schema', json_schema: { name: 'befundungstool_result', strict: true, schema: options.schema } };
     }
     return { url, headers, body };
   }
@@ -145,14 +149,27 @@
     return choice.message.content;
   }
 
-  function connectionError(viaLocal) {
+  function connectionError(viaLocal, provider) {
+    if (provider === 'lmstudio' && !viaLocal) return 'LM Studio is not reachable from the browser. Start the LM Studio server and enable CORS (Developer → Server settings), or open the app through the local launcher.';
     return viaLocal
       ? 'Local connection failed. Check the terminal running the launcher and your network.'
       : 'Direct browser connection failed (network, CORS, or browser restrictions). Try the local launcher.';
   }
 
+  async function listModels(endpoint, { signal, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '' } = {}) {
+    const url = new URL(validateURL(endpoint));
+    url.pathname = url.pathname.replace(/\/chat\/completions\/?$/, '').replace(/\/$/, '') + '/models';
+    const response = viaLocal
+      ? await fetchImpl('/api', { method: 'POST', redirect: 'error', signal, headers: { 'Content-Type': 'application/json', 'x-local-token': localToken }, body: JSON.stringify({ url: url.href, method: 'GET', headers: {} }) })
+      : await fetchImpl(url.href, { method: 'GET', redirect: 'error', signal });
+    if (!response.ok) throw new ProviderError(HINTS[response.status] || 'Provider request failed.', { status: response.status });
+    const data = await response.json().catch(() => null);
+    if (!Array.isArray(data?.data)) throw new ProviderError('The endpoint returned non-JSON data. Check its URL.');
+    return data.data.map(m => String(m?.id || '')).filter(id => id && !/embed/i.test(id)).slice(0, 200);
+  }
+
   return {
     API_PROVIDERS, DEFAULT_ENDPOINTS, HINTS, KNOWN_CODES, ProviderError,
-    defaultConnection, validateURL, buildRequest, sendRequest, responseText, connectionError, retryWait
+    defaultConnection, validateURL, buildRequest, listModels, sendRequest, responseText, connectionError, retryWait
   };
 });

@@ -68,7 +68,9 @@ function createServer({ upstreamFetch = fetch, root = defaultRoot() } = {}) {
       const url = new URL(input.url);
       const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
       if (url.username || url.password || url.search || url.hash || !(url.protocol === 'https:' || (url.protocol === 'http:' && loopback))) return reply(400, { error: 'Invalid endpoint' });
-      if (!input.body || typeof input.body !== 'object' || !input.headers || typeof input.headers !== 'object') return reply(400, { error: 'Invalid request' });
+      // Model lists (GET .../models) are the only other upstream request the app makes.
+      const method = input.method === 'GET' && /\/models$/.test(url.pathname) ? 'GET' : 'POST';
+      if ((method === 'POST' && (!input.body || typeof input.body !== 'object')) || !input.headers || typeof input.headers !== 'object') return reply(400, { error: 'Invalid request' });
       // Only the authentication headers the app sets are forwarded.
       const headers = { 'Content-Type': 'application/json' };
       for (const name of ['Authorization', 'x-goog-api-key']) {
@@ -80,7 +82,7 @@ function createServer({ upstreamFetch = fetch, root = defaultRoot() } = {}) {
       const timer = setTimeout(() => abort.abort(), UPSTREAM_TIMEOUT_MS);
       res.on('close', () => { if (!res.writableEnded) abort.abort(); });
       try {
-        const upstream = await upstreamFetch(url.href, { method: 'POST', redirect: 'error', headers, body: JSON.stringify(input.body), signal: abort.signal });
+        const upstream = await upstreamFetch(url.href, method === 'GET' ? { method, redirect: 'error', headers, signal: abort.signal } : { method, redirect: 'error', headers, body: JSON.stringify(input.body), signal: abort.signal });
         if (!upstream.ok) {
           const retryAfter = upstream.headers?.get('Retry-After');
           if (retryAfter && /^\d{1,6}$/.test(retryAfter)) res.setHeader('Retry-After', retryAfter);

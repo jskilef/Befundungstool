@@ -25,11 +25,18 @@ Without an AI provider selected, the app makes no network requests.
 - Set up once under the gear icon → *KI* (or *KI einrichten* in the report toolbar). The chip in the top bar shows the current provider, or that AI is off or locked.
 - *Prüfen* (Review) and *Überarbeiten* (Revise) sit in the report toolbar. Notes appear directly under the section they refer to and in the *KI-Hinweise* tab (click a note to jump to its section). Revise shows a suggestion card under each changed section with a word diff: *Übernehmen*, *Anhängen*, *Bearbeiten* (edit the suggestion first) or *Verwerfen*. Nothing changes in the report until you choose; frozen text stays protected and every change can be undone.
 - Changes to numbers, units, sides, negation and uncertainty are outlined. Results are marked outdated when the report changes.
-- Providers: OpenAI, Google Gemini, any OpenAI-compatible API (including local servers), or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
+- Providers: OpenAI, Google Gemini, **LM Studio** (your own GGUF models on this PC), any OpenAI-compatible API, or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
 - Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*.
 
+**Own models with LM Studio**
+- In LM Studio: *Developer* → start the server (port 1234) and load a model. In Befundungstool: gear → *KI* → *LM Studio (auf diesem Gerät)*; the model list loads automatically, no key needed. Report text stays on this PC.
+- The browser needs LM Studio's **CORS** option (server settings) when the app runs from the website or a local file. Alternatively start the app with `npm start` (local launcher), which works without CORS.
+- LM Studio enforces the response format (structured output), so fine-tuned models return valid suggestions. Empty report sections are not sent, because models tend to fill them with invented content. Local fine-tunes can still reverse findings (e.g. "kein" ↔ "Nachweis"): check every amber-outlined change.
+- After a revision, applied or discarded suggestions disappear; *KI-Ergebnisse schließen* in the AI status line removes all remaining notes and suggestions without starting a new report.
+
 **Only what you need**
-- Gear → *Allgemein* → *Funktionen*: switch off report builders, dictation, the study/patient/date fields, AI review or the macro sidebar. Hidden tools keep their data. Without study/patient/date, *Befund kopieren* and *Exportieren* contain only the report sections, ready to paste.
+- Gear → *Allgemein* → *Funktionen*: switch off report builders, dictation, the study/patient/date fields, AI review or the sidebar. The sidebar can sit left or right, in three widths, with any of its sections (Textbausteine, Tastenkürzel, KI-Hinweise).
+- New macros default to word expansion (*Kürzel + Leertaste*). Hidden tools keep their data. Without study/patient/date, *Befund kopieren* and *Exportieren* contain only the report sections, ready to paste.
 
 **Settings and appearance**
 - *Konfiguration speichern/laden*: one password-encrypted file with everything: macros, templates, favorites, preferences, AI settings and API keys (AES-256-GCM, PBKDF2-SHA256 with 600,000 iterations; passwords of at least 12 characters, not recoverable). Loading asks for the password and restores the keys into memory. By default an encrypted copy of the AI settings and keys is also kept in the browser, so the next session only asks for the password (*Später* skips it, *Vergessen* deletes the copy; manage it under gear → *KI*). Also imports radnote configuration and macro files and Report Studio settings files (plain or encrypted). Report text is never part of a settings file.

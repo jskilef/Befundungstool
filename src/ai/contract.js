@@ -47,6 +47,18 @@
     return new Error('Unexpected response format');
   }
 
+  // JSON Schema of the response contract, for servers that enforce structured output (LM Studio).
+  function responseSchema(mode) {
+    const issue = { type: 'object', properties: { category: { type: 'string' }, detail: { type: 'string' }, section: { type: 'string' } }, required: ['category', 'detail'] };
+    const properties = { issues: { type: 'array', items: issue }, changes: { type: 'array', items: { type: 'string' } } };
+    if (mode === 'review') return { type: 'object', properties, required: ['issues', 'changes'] };
+    return {
+      type: 'object',
+      properties: { sections: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } }, required: ['id', 'text'] } }, ...properties },
+      required: ['sections', 'issues', 'changes']
+    };
+  }
+
   // Strict validation: anything off-contract is rejected so it can never replace an accepted result.
   function parse(text, mode, sectionIds) {
     const clean = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -79,5 +91,5 @@
     return true;
   }
 
-  return { DEFAULT_PROMPTS, MAX_PROMPT, systemPrompt, userInput, parse, protectedIntact };
+  return { DEFAULT_PROMPTS, MAX_PROMPT, responseSchema, systemPrompt, userInput, parse, protectedIntact };
 });

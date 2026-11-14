@@ -70,8 +70,8 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(sent.store, false);
     assert.match(sent.messages[0].content, /Write review notes in German\.$/);
     const payload = JSON.parse(sent.messages[1].content);
-    assert.deepEqual(payload.sections.map(s => s.id), ['indication', 'technique', 'comparison', 'findings', 'impression']);
-    assert.deepEqual(payload.sections[3].protected, ['Kein Pleuraerguss rechts.']);
+    assert.deepEqual(payload.sections.map(s => s.id), ['findings', 'impression'], 'empty sections are not sent');
+    assert.deepEqual(payload.sections[0].protected, ['Kein Pleuraerguss rechts.']);
     assert.equal(payload.language, 'German');
     assert.equal(await page.locator('#aiNotes .ai-issue strong').textContent(), 'Rechtschreibung · Befund');
     assert.equal(await page.locator('#aiNotes img').count(), 0, 'model text must never become HTML');
@@ -116,9 +116,8 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     const impressionCard = page.locator('.ai-section[data-section=impression]');
     await impressionCard.locator('[data-apply=replace]').click();
     assert.equal(await page.inputValue('#impression'), 'Unauffällig.');
-    assert.equal(await impressionCard.locator('.ai-section-state').textContent(), 'Übernommen');
-    assert(await impressionCard.locator('[data-apply=append]').isDisabled());
-    assert(await impressionCard.locator('.ai-section-actions').isHidden(), 'applied suggestions collapse');
+    assert.equal(await impressionCard.count(), 0, 'applied suggestions disappear');
+    await page.waitForFunction(() => document.querySelector('#toast').textContent === 'In den Befund übernommen.');
     await page.locator('#undo').click();
     assert.equal(await page.inputValue('#impression'), 'Unauffaellig.');
 
@@ -132,8 +131,25 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     page.once('dialog', d => d.accept());
     await findingsCard.locator('[data-apply=append]').click();
     assert.equal(await page.inputValue('#findings'), 'Kein Pleuraerguss rechts. Herz normal gross. Neu.\n\nKein Pleuraerguss rechts. Herz normal groß.');
+    assert.equal(await page.locator('.ai-section').count(), 0, 'all suggestions handled');
+
+    // "KI-Ergebnisse schließen" removes notes and suggestions without starting a new report.
+    reply = () => ({ status: 200, body: completion({ sections: [{ id: 'impression', text: 'Unauffälliger Befund.' }], issues: [{ category: 'Hinweis', detail: 'Synthetisch.', section: 'impression' }], changes: [] }) });
+    await page.locator('#aiRevise').click();
+    await waitStatus('Überarbeitung abgeschlossen');
+    assert.equal(await page.locator('.ai-section').count(), 1);
+    assert(await page.locator('#aiClear').isVisible());
+    await page.locator('#aiClear').click();
+    assert.equal(await page.locator('.ai-section, .ai-inline-note').count(), 0);
+    assert.equal(await page.locator('#aiNotes .ai-issue').count(), 0);
+    assert(await page.locator('#aiClear').isHidden());
+    assert.equal(await page.inputValue('#impression'), 'Unauffaellig.', 'report text untouched');
+    assert.equal(await page.inputValue('#findings'), 'Kein Pleuraerguss rechts. Herz normal gross. Neu.\n\nKein Pleuraerguss rechts. Herz normal groß.');
 
     // Invalid output: rejected, raw text shown as text, previous result kept and marked.
+    reply = () => ({ status: 200, body: completion({ sections: [{ id: 'impression', text: 'Unauffälliger Befund.' }, { id: 'findings', text: 'Synthetischer Befund.' }], issues: [], changes: [] }) });
+    await page.locator('#aiRevise').click();
+    await waitStatus('Überarbeitung abgeschlossen');
     reply = () => ({ status: 200, body: completion('Sure! Here is your report <b>bold</b>') });
     await page.locator('#aiRevise').click();
     await waitStatus('Das Modell hat keine gültige strukturierte Antwort');

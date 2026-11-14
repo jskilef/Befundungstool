@@ -159,7 +159,10 @@ html[data-theme=dark]{--md-sys-elevation-1:0 1px 2px rgb(0 0 0/.5),0 1px 3px 1px
 
 /* ==== Layout (redesign 2026-11-11): app bar → report card with sticky toolbar → side tabs; settings in a sheet ==== */
 :root[data-palette][data-theme] main{align-items:start;padding-top:24px}
-@media (min-width:901px){:root[data-palette][data-theme] main{grid-template-columns:minmax(0,1fr) 320px}}
+html{--side-w:320px}html[data-sidebar-width=narrow]{--side-w:272px}html[data-sidebar-width=wide]{--side-w:400px}
+@media (min-width:901px){:root[data-palette][data-theme] main{grid-template-columns:minmax(0,1fr) var(--side-w)}
+  :root[data-palette][data-theme][data-sidebar-side=left] main{grid-template-columns:var(--side-w) minmax(0,1fr)}
+  :root[data-palette][data-theme][data-sidebar-side=left] .side{order:-1}}
 :root[data-palette][data-theme] .workspace{min-width:0}
 :root[data-palette][data-theme] .icon-button{display:inline-grid;place-items:center;width:40px;min-height:40px;height:40px;padding:0;border:0;border-radius:var(--md-sys-shape-corner-full);color:var(--md-sys-color-on-surface-variant);background:transparent}
 :root[data-palette][data-theme] .icon{width:24px;height:24px;fill:currentColor}
@@ -246,7 +249,15 @@ html[data-off~=dictation] :is(.dictation-action,.dictation-status){display:none!
 html[data-off~=meta] .meta{display:none!important}
 html[data-off~=ai] :is(#aiChipHost,#aiActionsHost,#aiBannerHost,.ai-inline,#tabNotes,[data-sheet-tab=ai]){display:none!important}
 html[data-off~=sidebar] .side{display:none!important}
+html[data-side-hide~=macros] #macroPanel,html[data-side-hide~=shortcuts] #shortcutsPanel,html[data-side-hide~=notes] #tabNotes,html[data-side-single=true] .side-tabs{display:none!important}
+html[data-side-empty=true] .side{display:none!important}
+@media (min-width:901px){html[data-side-empty=true] main{grid-template-columns:minmax(0,1fr)!important;max-width:1100px}}
 @media (min-width:901px){html[data-off~=sidebar] main{grid-template-columns:minmax(0,1fr)!important;max-width:1100px}}
+:root[data-palette][data-theme] .sidebar-options{padding:0 0 8px 16px;border-left:2px solid var(--md-sys-color-outline-variant);margin:4px 0 8px}
+:root[data-palette][data-theme] .option-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+:root[data-palette][data-theme] .option-pair select{width:100%;margin-top:6px}
+:root[data-palette][data-theme] .option-heading{margin:16px 0 0;font-size:14px;line-height:20px;font-weight:500;color:var(--md-sys-color-on-surface)}
+:root[data-palette][data-theme] .ai-clear{min-height:32px;padding:0 12px;font-size:12px;line-height:16px;letter-spacing:.5px;border-color:transparent;margin-left:auto}
 /* M3 switch. */
 :root[data-palette][data-theme] .feature-switches{border:0;padding:0;margin:8px 0 24px;min-width:0}
 :root[data-palette][data-theme] .feature-switches legend{font-size:16px;line-height:24px;font-weight:500;color:var(--md-sys-color-on-surface);padding:0}

@@ -105,6 +105,13 @@
   });
 
   Object.assign(DE, {
+    'LM Studio (on this device)': 'LM Studio (auf diesem Gerät)', 'Load models': 'Modelle laden', 'Loading models…': 'Modelle werden geladen…',
+    'Models found:': 'Modelle gefunden:', 'No models found.': 'Keine Modelle gefunden.',
+    'Close AI results': 'KI-Ergebnisse schließen', 'AI results closed.': 'KI-Ergebnisse geschlossen.',
+    'Start the server in LM Studio (Developer tab) and load a model. For use from the website or a local file, enable CORS in the server settings, or open the app through the local launcher.': 'In LM Studio den Server starten (Reiter „Developer“) und ein Modell laden. Für die Nutzung über die Website oder eine lokale Datei in den Server-Einstellungen CORS aktivieren oder die App über den lokalen Starter öffnen.',
+    'LM Studio is not reachable from the browser. Start the LM Studio server and enable CORS (Developer → Server settings), or open the app through the local launcher.': 'LM Studio ist im Browser nicht erreichbar. LM-Studio-Server starten und CORS aktivieren (Developer → Server-Einstellungen) oder die App über den lokalen Starter öffnen.'
+  });
+  Object.assign(DE, {
     'Set up AI': 'KI einrichten', 'AI off': 'KI aus', 'AI locked': 'KI gesperrt', 'AI:': 'KI:', 'on this device': 'auf diesem Gerät',
     'key missing': 'Schlüssel fehlt', 'AI settings': 'KI-Einstellungen', 'Unlock saved configuration': 'Gespeicherte Konfiguration entsperren',
     'Run Review or Revise to see notes here.': 'Prüfen oder Überarbeiten ausführen, um hier Hinweise zu sehen.',
@@ -139,7 +146,7 @@
     const field = (label, control) => node('label', {}, [node('span', { text: label }), control]);
 
     const ui = {
-      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API'), option('webllm', 'Browser local · GPU (WebGPU)'), option('wasm', 'Browser local · CPU (WebAssembly)')]),
+      provider: node('select', { id: 'aiProvider' }, [option('none', 'No AI'), option('openai', 'OpenAI'), option('gemini', 'Google Gemini'), option('compatible', 'Other OpenAI-compatible API'), option('lmstudio', 'LM Studio (on this device)'), option('webllm', 'Browser local · GPU (WebGPU)'), option('wasm', 'Browser local · CPU (WebAssembly)')]),
       localModel: node('select', { id: 'aiLocalModel' }),
       dtype: node('select', { id: 'aiCustomDtype' }, Local.LOCAL_DTYPES.map(d => option(d, d))),
       folder: node('input', { id: 'aiModelFolder', type: 'file', webkitdirectory: true, multiple: true }),
@@ -173,7 +180,13 @@
       b.onclick = () => { if (bridge.confirm(t('Reset this prompt to its default?'))) { ui[which + 'Prompt'].value = Contract.DEFAULT_PROMPTS[which]; readForm(); } };
       return b;
     };
-    ui.apiRows = node('div', { class: 'ai-api-rows' }, [field('Endpoint', ui.endpoint), field('API key', ui.key), node('p', { class: 'hint', text: 'API keys are kept in memory only. Save an encrypted configuration file to keep them.' })]);
+    ui.keyField = field('API key', ui.key);
+    ui.keyHint = node('p', { class: 'hint', text: 'API keys are kept in memory only. Save an encrypted configuration file to keep them.' });
+    ui.modelList = node('datalist', { id: 'aiModelList' });
+    ui.model.setAttribute('list', 'aiModelList');
+    ui.loadModels = node('button', { id: 'aiLoadModels', type: 'button', text: 'Load models' });
+    ui.lmHint = node('p', { class: 'hint', text: 'Start the server in LM Studio (Developer tab) and load a model. For use from the website or a local file, enable CORS in the server settings, or open the app through the local launcher.' });
+    ui.apiRows = node('div', { class: 'ai-api-rows' }, [field('Endpoint', ui.endpoint), ui.keyField, ui.keyHint, ui.lmHint, node('div', { class: 'ai-actions' }, [ui.loadModels]), ui.modelList]);
     ui.modelField = field('Model ID', ui.model);
     ui.localModelField = field('Browser model', ui.localModel);
     ui.customRows = node('div', { id: 'aiCustomRows' }, [
@@ -202,7 +215,8 @@
     // Workflow controls live in the report toolbar; setup lives in the settings sheet; notes in the side tab.
     ui.setup = node('button', { id: 'aiSetup', type: 'button', text: 'Set up AI' });
     ui.chip = node('button', { id: 'aiChip', type: 'button', class: 'ai-chip' });
-    ui.banner = node('div', { id: 'aiBanner', class: 'ai-banner ai-panel' }, [ui.destination, ui.status, ui.rawBox]);
+    ui.clear = node('button', { id: 'aiClear', type: 'button', class: 'ai-clear', text: 'Close AI results', hidden: true });
+    ui.banner = node('div', { id: 'aiBanner', class: 'ai-banner ai-panel' }, [ui.destination, ui.status, ui.clear, ui.rawBox]);
     hosts.settings.replaceChildren(connection);
     hosts.actions.replaceChildren(node('div', { class: 'ai-actions', id: 'aiActions' }, [ui.setup, ui.review, ui.revise, ui.cancel]));
     hosts.banner.replaceChildren(ui.banner);
@@ -284,6 +298,11 @@
       ui.apiRows.hidden = none || local;
       ui.modelField.hidden = local || none;
       ui.test.hidden = none;
+      const lm = provider === 'lmstudio';
+      ui.keyField.hidden = lm;
+      ui.keyHint.hidden = lm;
+      ui.lmHint.hidden = !lm;
+      ui.loadModels.hidden = !(lm || provider === 'compatible');
       ui.localModelField.hidden = !local;
       ui.localRows.hidden = !local;
       ui.gpuHelp.hidden = provider !== 'webllm' || custom;
@@ -302,7 +321,7 @@
       ui.banner.hidden = none && !statusMessage.key;
     }
 
-    const PROVIDER_NAMES = { openai: 'OpenAI', gemini: 'Gemini', compatible: 'API', webllm: 'on this device', wasm: 'on this device' };
+    const PROVIDER_NAMES = { openai: 'OpenAI', gemini: 'Gemini', compatible: 'API', lmstudio: 'LM Studio', webllm: 'on this device', wasm: 'on this device' };
     function renderChip() {
       const provider = ui.provider.value;
       const needsKey = ['openai', 'gemini'].includes(provider) && !ui.key.value.trim();
@@ -319,7 +338,12 @@
       if (provider === 'none') { ui.destination.textContent = t('No AI provider selected. Nothing is sent.'); return; }
       if (isLocal(provider)) { ui.destination.textContent = t('Report processing: on this device') + ' · ' + (provider === 'wasm' ? 'CPU / WASM' : 'WebGPU'); return; }
       let origin;
-      try { origin = new URL(Providers.validateURL(ui.endpoint.value.trim())).origin; } catch { origin = t('Choose a valid endpoint.'); }
+      try {
+        const url = new URL(Providers.validateURL(ui.endpoint.value.trim()));
+        // Loopback servers (LM Studio, local OpenAI-compatible servers) process the report on this device.
+        if (['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) { ui.destination.textContent = t('Report processing: on this device') + ' · ' + (provider === 'lmstudio' ? 'LM Studio' : url.host); return; }
+        origin = url.origin;
+      } catch { origin = t('Choose a valid endpoint.'); }
       ui.destination.textContent = t('Report destination:') + ' ' + origin + (launcher ? ' · ' + t('via local launcher') : '');
     }
 
@@ -330,7 +354,23 @@
       settings.provider = ui.provider.value;
       fillForm();
       readForm();
+      if (settings.provider === 'lmstudio') loadModels();
     };
+    // Lists the server's models (GET .../models). Sends no report text.
+    async function loadModels() {
+      setStatus('Loading models…');
+      try {
+        const ids = await Providers.listModels(ui.endpoint.value.trim(), { viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '' });
+        ui.modelList.replaceChildren(...ids.map(id => node('option', { value: id })));
+        if (!ids.length) { setStatus('No models found.', true); return; }
+        if (!ui.model.value.trim()) { ui.model.value = ids[0]; readForm(); }
+        setStatus('Models found:', false, ' ' + ids.length + ' · ' + ids.join(', '));
+      } catch (error) {
+        const [key, suffix] = describeError(error);
+        setStatus(key, true, suffix);
+      }
+    }
+    ui.loadModels.onclick = loadModels;
     // Saves the outgoing provider's fields before switching.
     function readFormFor(provider) {
       if (provider && provider !== 'none') settings.profiles[provider] = currentProfile(provider);
@@ -391,7 +431,7 @@
     }
     function describeError(error) {
       if (error?.name === 'AbortError') return ['Cancelled or timed out.', ''];
-      if (error?.name === 'TypeError') return [Providers.connectionError(launcher), ''];
+      if (error?.name === 'TypeError') return [Providers.connectionError(launcher, ui.provider.value), ''];
       if (error?.name === 'ProviderError') return [error.hint, (error.status ? ' (HTTP ' + error.status + ')' : '') + (error.code ? ' [' + error.code + ']' : '')];
       return [String(error?.message || 'Provider request failed.'), ''];
     }
@@ -506,15 +546,23 @@
 
     function applySection(section, mode, text) {
       if (section.applied || section.discarded) return;
-      if (mode === 'discard') { section.discarded = true; refresh(); return; }
+      if (mode === 'discard') { section.discarded = true; removeCard(section); return; }
       if ((sectionStale(section) || revisionFailed) && !bridge.confirm(t('This result is outdated or the latest request failed. Apply it anyway?'))) return;
       if (!Contract.protectedIntact(section.protected, text) && !bridge.confirm(t('The AI changed frozen text in this section. Apply anyway?'))) return;
       const result = bridge.apply(section.id, text, mode);
       if (!result.ok) { bridge.notify(result.message); return; }
       section.applied = mode;
       bridge.notify('Applied to the report.');
-      refresh();
+      removeCard(section);
     }
+
+    // Applied or discarded suggestions disappear; "Close AI results" removes everything without a new report.
+    function removeCard(section) {
+      if (section.el) { section.el.card.remove(); inlineCards = inlineCards.filter(c => c !== section.el.card); section.el = null; }
+      syncClear();
+    }
+    function syncClear() { ui.clear.hidden = !(notes || inlineCards.length); }
+    ui.clear.onclick = () => { clearResults(); bridge.notify('AI results closed.'); };
 
     // Cheap update of outdated/provenance labels; called on every editor change.
     function refresh() {
@@ -556,7 +604,8 @@
     async function runAction(mode) {
       if (busy) return;
       const before = snapshot(mode);
-      const sections = bridge.getSections();
+      // Empty sections are not sent: models tend to invent content for them (seen with local fine-tunes).
+      const sections = bridge.getSections().filter(s => s.text.trim());
       if (!sections.some(s => s.text.trim())) { setStatus('Enter a report first.', true); return; }
       ui.rawBox.hidden = true;
       ui.raw.textContent = '';
@@ -570,7 +619,7 @@
         // Small CPU models follow the JSON contract more reliably with an example (as in Report Studio).
         const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm' });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
-        const data = await send(provider, endpoint, key, model, system, input, controller.signal);
+        const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode));
         const text = Providers.responseText(data, isLocal(provider) ? 'compatible' : provider);
         let parsed;
         try {
@@ -598,6 +647,7 @@
         }
         renderNotes();
         refresh();
+        syncClear();
         const changedMeanwhile = !same(before, snapshot(mode));
         const proposals = mode === 'revise' ? revision.sections.filter(s => s.proposed !== s.original).length : 0;
         setStatus(changedMeanwhile ? 'Inputs changed during the request. Run the action again.' : mode === 'review' ? 'Review complete. Check the notes.' :
@@ -619,9 +669,9 @@
     ui.revise.onclick = () => runAction('revise');
 
     // API providers go through fetch; browser-local providers through the worker runner. Never both.
-    function send(provider, endpoint, key, model, system, input, signal) {
+    function send(provider, endpoint, key, model, system, input, signal, schema) {
       if (isLocal(provider)) return runner.request(Local.buildLocalRequest(provider, model, system, input), signal);
-      const request = Providers.buildRequest(provider, endpoint, key, model, system, input);
+      const request = Providers.buildRequest(provider, endpoint, key, model, system, input, { schema });
       return Providers.sendRequest(request, {
         signal, viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '',
         onRetry: ({ status, attempt, seconds }) => setStatus('Temporary provider failure. Retrying', false, ` ${attempt}/2 (HTTP ${status}, ${seconds} s)…`)
@@ -670,6 +720,7 @@
       renderNotes(); renderRevision();
       ui.raw.textContent = ''; ui.rawBox.hidden = true;
       setStatus('');
+      syncClear();
     }
 
     setSettings(bridge.getAi());
