@@ -58,17 +58,16 @@
     return url.href;
   }
 
-  /* OpenAI-style APIs answer chat requests at <base>/chat/completions. A base URL such as
-     https://api.mistral.ai/v1 is completed; other paths are used as entered. Without this, a POST to
-     the base URL usually hits a route without CORS headers and the browser reports a network error. */
+  /* OpenAI-style APIs: the endpoint field takes either the full chat URL or the base URL that provider
+     docs list (like `base_url` in the OpenAI libraries), e.g. https://api.mistral.ai/v1 or
+     https://generativelanguage.googleapis.com/v1beta/openai. Anything not already ending in
+     /chat/completions gets it appended; model lists use the same base plus /models. Posting to a bare
+     base URL usually hits a route without CORS headers, which the browser reports as a network error. */
   function chatEndpoint(href) {
     const url = new URL(href);
     if (/\/chat\/completions\/?$/.test(url.pathname)) return href;
-    if (url.pathname === '/' || /\/v\d+[a-z0-9]*\/?$/i.test(url.pathname)) {
-      url.pathname = url.pathname.replace(/\/$/, '') + '/chat/completions';
-      return url.href;
-    }
-    return href;
+    url.pathname = url.pathname.replace(/\/+$/, '') + '/chat/completions';
+    return url.href;
   }
 
   // options.schema: JSON Schema for structured output (LM Studio enforces it with a grammar).
@@ -172,7 +171,7 @@
     if (provider === 'lmstudio' && !viaLocal) return 'LM Studio is not reachable from the browser. Start the LM Studio server and enable CORS (Developer → Server settings), or open the app through the local launcher.';
     return viaLocal
       ? 'Local connection failed. Check the terminal running the launcher and your network.'
-      : 'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (usually ending in /chat/completions) or try the local launcher.';
+      : 'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (the provider’s base URL, e.g. https://api.mistral.ai/v1) or try the local launcher.';
   }
 
   // key: sent as a Bearer token when given (hosted APIs such as Mistral require it for the model list).

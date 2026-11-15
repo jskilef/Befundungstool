@@ -75,17 +75,22 @@ function response(status, data, headers = {}) {
   assert.equal(gemini.headers.Authorization, undefined);
   assert.equal(gemini.body.systemInstruction.parts[0].text, 'sys');
   assert.throws(() => P.buildRequest('gemini', P.DEFAULT_ENDPOINTS.gemini, 'k', 'bad id!', 's', 'i'), /Invalid Gemini model ID/);
-  // OpenAI-style base URLs are completed to /chat/completions (e.g. Mistral's /v1); other paths stay as entered.
+  // OpenAI-style endpoints: full chat URL or base URL (like base_url in the OpenAI libraries).
   for (const [entered, used] of [
     ['https://api.eu.mistral.ai/v1', 'https://api.eu.mistral.ai/v1/chat/completions'],
     ['https://api.eu.mistral.ai/v1/', 'https://api.eu.mistral.ai/v1/chat/completions'],
-    ['https://example.test/api/v1beta', 'https://example.test/api/v1beta/chat/completions'],
+    ['https://generativelanguage.googleapis.com/v1beta/openai/', 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'],
+    ['https://example.test/openai/v1', 'https://example.test/openai/v1/chat/completions'],
     ['https://example.test', 'https://example.test/chat/completions'],
     ['https://example.test/v1/chat/completions', 'https://example.test/v1/chat/completions'],
-    ['https://example.test/custom/generate', 'https://example.test/custom/generate']
+    ['https://example.test/v1/chat/completions/', 'https://example.test/v1/chat/completions/']
   ]) assert.equal(P.buildRequest('compatible', entered, 'k', 'm', 's', 'i').url, used, entered);
+  // Model lists use the same base.
+  let listed;
+  await P.listModels('https://generativelanguage.googleapis.com/v1beta/openai', { fetchImpl: async url => { listed = url; return { ok: true, status: 200, json: async () => ({ data: [] }) }; } });
+  assert.equal(listed, 'https://generativelanguage.googleapis.com/v1beta/openai/models');
   assert.equal(P.buildRequest('openai', 'https://api.openai.com/v1', 'k', 'm', 's', 'i').url, 'https://api.openai.com/v1/chat/completions');
-  assert.match(P.connectionError(false, 'compatible'), /Check the endpoint \(usually ending in \/chat\/completions\)/);
+  assert.match(P.connectionError(false, 'compatible'), /Check the endpoint \(the provider’s base URL/);
   const local = P.buildRequest('compatible', 'http://127.0.0.1:1234/v1/chat/completions', '', 'local-model', 's', 'i');
   assert.equal(local.headers.Authorization, undefined);
   assert.equal(local.body.store, undefined);

@@ -64,7 +64,7 @@
     'Gemini returned no candidate. The response may be blocked.': 'Gemini hat keine Antwort geliefert. Sie wurde eventuell blockiert.',
     'The model did not finish normally.': 'Das Modell wurde nicht regulär beendet.',
     'The API returned no text. Check model compatibility.': 'Die API hat keinen Text geliefert. Modellkompatibilität prüfen.',
-    'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (usually ending in /chat/completions) or try the local launcher.': 'Direkte Browserverbindung fehlgeschlagen (Netzwerk, CORS oder Browserbeschränkungen). Endpunkt prüfen (endet meist auf /chat/completions) oder den lokalen Starter verwenden.',
+    'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (the provider’s base URL, e.g. https://api.mistral.ai/v1) or try the local launcher.': 'Direkte Browserverbindung fehlgeschlagen (Netzwerk, CORS oder Browserbeschränkungen). Endpunkt prüfen (Basis-URL des Anbieters, z. B. https://api.mistral.ai/v1) oder den lokalen Starter verwenden.',
     'Local connection failed. Check the terminal running the launcher and your network.': 'Lokale Verbindung fehlgeschlagen. Terminal des Starters und Netzwerk prüfen.',
     'Enter non-empty task instructions in Advanced settings (maximum 20,000 characters).': 'In den erweiterten Einstellungen nicht leere Anweisungen eingeben (maximal 20.000 Zeichen).',
     'Reset this prompt to its default?': 'Diesen Prompt auf den Standard zurücksetzen?'
@@ -179,7 +179,7 @@
       download: node('a', { id: 'aiModelDownload', target: '_blank', rel: 'noopener noreferrer', text: 'Model files and download instructions' }),
       gpuHelp: node('p', { class: 'hint', text: 'WebGPU is required. First use downloads the runtime and model from jsDelivr, GitHub and Hugging Face. Model weights may be cached; report text stays in the browser worker. No API key is used.' }),
       cpuHelp: node('p', { class: 'hint', text: 'CPU mode needs no WebGPU. First use downloads runtime and model files; this can be large and slow. Reports stay in the local worker. Small models may struggle with German and structured reports.' }),
-      endpoint: node('input', { id: 'aiEndpoint', type: 'url', autocomplete: 'off', spellcheck: 'false' }),
+      endpoint: node('input', { id: 'aiEndpoint', type: 'url', autocomplete: 'off', spellcheck: 'false', placeholder: 'https://api.example.com/v1' }),
       key: node('input', { id: 'aiKey', type: 'password', autocomplete: 'off', spellcheck: 'false' }),
       model: node('input', { id: 'aiModel', autocomplete: 'off', spellcheck: 'false' }),
       language: node('select', { id: 'aiReportLanguage' }, [option('Same as original', 'Same as original'), option('German', 'German'), option('English', 'English')]),
