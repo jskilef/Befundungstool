@@ -17,11 +17,24 @@ function response(status, data, headers = {}) {
 
 (async () => {
   // Prompts: contract appended, note language, prompt limits.
-  const system = Contract.systemPrompt('revise', Contract.DEFAULT_PROMPTS.revise, 'de');
+  const system = Contract.systemPrompt('revise', Contract.DEFAULT_PROMPTS.revise, 'de', { promptLanguage: 'en' });
   assert.match(system, /Response contract: Return ONLY valid JSON with sections/);
   assert.match(system, /Write review notes in German\.$/);
   assert.match(Contract.systemPrompt('review', 'x', 'en'), /Review only\. Do not rewrite the report\..*English\.$/s);
   assert.match(Contract.systemPrompt('review', 'x', 'en', { example: true }), /Output shape example/);
+  // German authors get German defaults and contract text; JSON keys stay English. Defaults are recognised in both languages.
+  assert.equal(Contract.defaultPrompts('de'), Contract.DEFAULT_PROMPTS_DE);
+  assert.equal(Contract.defaultPrompts('en'), Contract.DEFAULT_PROMPTS);
+  assert.match(Contract.DEFAULT_PROMPTS_DE.review, /^Du bist ein Assistent zur Prüfung radiologischer Befunde\. .*NUR PRÜFEN/s);
+  const german = Contract.systemPrompt('revise', Contract.DEFAULT_PROMPTS_DE.revise, 'de');
+  assert.match(german, /Antwortformat: AUSSCHLIESSLICH gültiges JSON zurückgeben mit sections .* issues .* changes/s);
+  assert.match(german, /Hinweise auf Deutsch schreiben\.$/);
+  assert.match(Contract.systemPrompt('review', 'x', 'de', { example: true }), /Beispiel für die Ausgabeform.*"category":"Klarheit"/s);
+  assert.match(Contract.systemPrompt('review', 'x', 'en', { promptLanguage: 'de' }), /Hinweise auf Englisch schreiben\.$/);
+  for (const mode of ['review', 'revise']) {
+    assert(Contract.isDefaultPrompt(mode, Contract.DEFAULT_PROMPTS[mode]) && Contract.isDefaultPrompt(mode, Contract.DEFAULT_PROMPTS_DE[mode]));
+    assert(!Contract.isDefaultPrompt(mode, Contract.DEFAULT_PROMPTS[mode] + ' Kurz.'));
+  }
   assert.throws(() => Contract.systemPrompt('review', ' ', 'de'));
   assert.throws(() => Contract.systemPrompt('review', 'x'.repeat(20001), 'de'));
 
@@ -62,6 +75,17 @@ function response(status, data, headers = {}) {
   assert.equal(gemini.headers.Authorization, undefined);
   assert.equal(gemini.body.systemInstruction.parts[0].text, 'sys');
   assert.throws(() => P.buildRequest('gemini', P.DEFAULT_ENDPOINTS.gemini, 'k', 'bad id!', 's', 'i'), /Invalid Gemini model ID/);
+  // OpenAI-style base URLs are completed to /chat/completions (e.g. Mistral's /v1); other paths stay as entered.
+  for (const [entered, used] of [
+    ['https://api.eu.mistral.ai/v1', 'https://api.eu.mistral.ai/v1/chat/completions'],
+    ['https://api.eu.mistral.ai/v1/', 'https://api.eu.mistral.ai/v1/chat/completions'],
+    ['https://example.test/api/v1beta', 'https://example.test/api/v1beta/chat/completions'],
+    ['https://example.test', 'https://example.test/chat/completions'],
+    ['https://example.test/v1/chat/completions', 'https://example.test/v1/chat/completions'],
+    ['https://example.test/custom/generate', 'https://example.test/custom/generate']
+  ]) assert.equal(P.buildRequest('compatible', entered, 'k', 'm', 's', 'i').url, used, entered);
+  assert.equal(P.buildRequest('openai', 'https://api.openai.com/v1', 'k', 'm', 's', 'i').url, 'https://api.openai.com/v1/chat/completions');
+  assert.match(P.connectionError(false, 'compatible'), /Check the endpoint \(usually ending in \/chat\/completions\)/);
   const local = P.buildRequest('compatible', 'http://127.0.0.1:1234/v1/chat/completions', '', 'local-model', 's', 'i');
   assert.equal(local.headers.Authorization, undefined);
   assert.equal(local.body.store, undefined);

@@ -22,6 +22,8 @@ First version, merging radnote 1.8.0 and Report Studio 1.6.0 into one standalone
 - AI Revise works per report section; proposals are applied only by explicit Replace/Append and respect frozen text and undo.
 - One settings file (`befundungstool-settings` v1), always saved password-encrypted with everything including API keys, with optional AI style notes per template. Imports radnote settings v1/v2, legacy macro files and Report Studio settings (plain and encrypted); Report Studio templates become field templates.
 - API keys are never written to browser storage in plaintext; an optional encrypted copy is unlocked by password once per session. Provider, model and endpoint are remembered.
+- Default AI prompts in German or English, following the report language (or the interface language when "Same as original"); edited prompts are kept as written.
+- OpenAI-compatible base URLs such as `https://api.eu.mistral.ai/v1` are completed to `/chat/completions` (posting to the base URL failed as a CORS error).
 - AI answers are bounded through the JSON schema (known section ids, at most 6 notes of 300 characters, revised text at most about twice the original), so small models can no longer loop until the length limit; GGUF context raised to 8192 tokens with a report-sized output budget; a cut-off answer now says what to do and shows the partial output.
 - GGUF models directly in the browser: llama.cpp via wllama 3.8.1 (WebGPU or CPU), model file chosen locally, files over 2 GB split in the browser without copying, structured output enforced by JSON schema.
 - LM Studio provider: local GGUF models via LM Studio's server, model list, no key, structured output enforced with a JSON schema; works directly (CORS on) or through the launcher.

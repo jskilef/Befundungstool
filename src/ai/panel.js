@@ -64,7 +64,7 @@
     'Gemini returned no candidate. The response may be blocked.': 'Gemini hat keine Antwort geliefert. Sie wurde eventuell blockiert.',
     'The model did not finish normally.': 'Das Modell wurde nicht regulär beendet.',
     'The API returned no text. Check model compatibility.': 'Die API hat keinen Text geliefert. Modellkompatibilität prüfen.',
-    'Direct browser connection failed (network, CORS, or browser restrictions). Try the local launcher.': 'Direkte Browserverbindung fehlgeschlagen (Netzwerk, CORS oder Browserbeschränkungen). Lokalen Starter verwenden.',
+    'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (usually ending in /chat/completions) or try the local launcher.': 'Direkte Browserverbindung fehlgeschlagen (Netzwerk, CORS oder Browserbeschränkungen). Endpunkt prüfen (endet meist auf /chat/completions) oder den lokalen Starter verwenden.',
     'Local connection failed. Check the terminal running the launcher and your network.': 'Lokale Verbindung fehlgeschlagen. Terminal des Starters und Netzwerk prüfen.',
     'Enter non-empty task instructions in Advanced settings (maximum 20,000 characters).': 'In den erweiterten Einstellungen nicht leere Anweisungen eingeben (maximal 20.000 Zeichen).',
     'Reset this prompt to its default?': 'Diesen Prompt auf den Standard zurücksetzen?'
@@ -198,7 +198,7 @@
     ui.rawBox = node('details', { id: 'aiRawBox', hidden: true }, [node('summary', { text: 'Raw model response' }), ui.raw]);
     const resetButton = which => {
       const b = node('button', { type: 'button', class: 'ai-reset', text: 'Reset' });
-      b.onclick = () => { if (bridge.confirm(t('Reset this prompt to its default?'))) { ui[which + 'Prompt'].value = Contract.DEFAULT_PROMPTS[which]; readForm(); } };
+      b.onclick = () => { if (bridge.confirm(t('Reset this prompt to its default?'))) { ui[which + 'Prompt'].value = Contract.defaultPrompts(promptLanguage())[which]; readForm(); } };
       return b;
     };
     ui.keyField = field('API key', ui.key);
@@ -307,8 +307,9 @@
       }
       ui.dtype.value = settings.customModelDtype || 'q8';
       ui.language.value = settings.reportLanguage;
-      ui.reviewPrompt.value = settings.prompts?.review || Contract.DEFAULT_PROMPTS.review;
-      ui.revisePrompt.value = settings.prompts?.revise || Contract.DEFAULT_PROMPTS.revise;
+      const defaults = Contract.defaultPrompts(promptLanguage());
+      ui.reviewPrompt.value = settings.prompts?.review || defaults.review;
+      ui.revisePrompt.value = settings.prompts?.revise || defaults.revise;
       credentialOrigin = originOf(ui.endpoint.value);
       syncControls();
     }
@@ -320,12 +321,26 @@
       settings.reportLanguage = ui.language.value;
       if (provider !== 'none') settings.profiles[provider] = currentProfile(provider);
       settings.customModelDtype = ui.dtype.value;
+      syncDefaultPrompts();
       const prompts = { review: ui.reviewPrompt.value, revise: ui.revisePrompt.value };
-      if (prompts.review === Contract.DEFAULT_PROMPTS.review && prompts.revise === Contract.DEFAULT_PROMPTS.revise) delete settings.prompts;
+      if (Contract.isDefaultPrompt('review', prompts.review) && Contract.isDefaultPrompt('revise', prompts.revise)) delete settings.prompts;
       else if (prompts.review.trim() && prompts.revise.trim()) settings.prompts = prompts;
       bridge.setAi(clone(settings));
       syncControls();
       refresh();
+    }
+
+    /* Default prompts follow the author's language: the report language when set, otherwise the
+       interface language. Edited prompts are kept as written. */
+    function promptLanguage() {
+      return settings.reportLanguage === 'German' ? 'de' : settings.reportLanguage === 'English' ? 'en' : bridge.uiLanguage() === 'de' ? 'de' : 'en';
+    }
+    function syncDefaultPrompts() {
+      const defaults = Contract.defaultPrompts(promptLanguage());
+      for (const which of ['review', 'revise']) {
+        const area = ui[which + 'Prompt'];
+        if (Contract.isDefaultPrompt(which, area.value)) area.value = defaults[which];
+      }
     }
 
     function syncControls() {
@@ -672,7 +687,7 @@
       try {
         const { provider, endpoint, key, model } = connectionParts();
         // Small CPU models follow the JSON contract more reliably with an example (as in Report Studio).
-        const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm' });
+        const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm', promptLanguage: promptLanguage() });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
         const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode, { sections }));
         const text = Providers.responseText(data, isOnDevice(provider) ? 'compatible' : provider);
@@ -759,6 +774,7 @@
 
     // ---- Public API ---------------------------------------------------------
     function applyLanguage() {
+      syncDefaultPrompts();
       for (const rootNode of [...roots, ...inlineCards, ...inlineNotes]) rootNode.querySelectorAll('[data-ai-text]').forEach(e => { e.textContent = t(e.dataset.aiText); });
       renderChip();
       ui.progress.textContent = progressMessage.key ? t(progressMessage.key) + progressMessage.suffix : '';

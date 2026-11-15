@@ -58,6 +58,19 @@
     return url.href;
   }
 
+  /* OpenAI-style APIs answer chat requests at <base>/chat/completions. A base URL such as
+     https://api.mistral.ai/v1 is completed; other paths are used as entered. Without this, a POST to
+     the base URL usually hits a route without CORS headers and the browser reports a network error. */
+  function chatEndpoint(href) {
+    const url = new URL(href);
+    if (/\/chat\/completions\/?$/.test(url.pathname)) return href;
+    if (url.pathname === '/' || /\/v\d+[a-z0-9]*\/?$/i.test(url.pathname)) {
+      url.pathname = url.pathname.replace(/\/$/, '') + '/chat/completions';
+      return url.href;
+    }
+    return href;
+  }
+
   // options.schema: JSON Schema for structured output (LM Studio enforces it with a grammar).
   function buildRequest(provider, endpoint, key, model, system, input, options = {}) {
     if (!API_PROVIDERS.includes(provider)) throw new ProviderError('Choose an AI provider.');
@@ -79,6 +92,7 @@
         generationConfig: { responseMimeType: 'application/json' }
       };
     } else {
+      url = chatEndpoint(url);
       if (provider === 'openai' && new URL(url).hostname === 'api.openai.com' && !key) throw new ProviderError('Enter your API key.');
       if (key) headers.Authorization = 'Bearer ' + key;
       body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: input }] };
@@ -158,7 +172,7 @@
     if (provider === 'lmstudio' && !viaLocal) return 'LM Studio is not reachable from the browser. Start the LM Studio server and enable CORS (Developer → Server settings), or open the app through the local launcher.';
     return viaLocal
       ? 'Local connection failed. Check the terminal running the launcher and your network.'
-      : 'Direct browser connection failed (network, CORS, or browser restrictions). Try the local launcher.';
+      : 'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (usually ending in /chat/completions) or try the local launcher.';
   }
 
   async function listModels(endpoint, { signal, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '' } = {}) {
@@ -175,6 +189,6 @@
 
   return {
     API_PROVIDERS, DEFAULT_ENDPOINTS, HINTS, KNOWN_CODES, ProviderError,
-    defaultConnection, validateURL, buildRequest, listModels, sendRequest, responseText, connectionError, retryWait
+    defaultConnection, validateURL, chatEndpoint, buildRequest, listModels, sendRequest, responseText, connectionError, retryWait
   };
 });

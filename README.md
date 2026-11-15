@@ -26,7 +26,7 @@ Without an AI provider selected, the app makes no network requests.
 - *Prüfen* (Review) and *Überarbeiten* (Revise) sit in the report toolbar. Notes appear directly under the section they refer to and in the *KI-Hinweise* tab (click a note to jump to its section). Revise shows a suggestion card under each changed section with a word diff: *Übernehmen*, *Anhängen*, *Bearbeiten* (edit the suggestion first) or *Verwerfen*. Nothing changes in the report until you choose; frozen text stays protected and every change can be undone.
 - Changes to numbers, units, sides, negation and uncertainty are outlined. Results are marked outdated when the report changes.
 - Providers: OpenAI, Google Gemini, **LM Studio** (your own GGUF models on this PC), any OpenAI-compatible API, or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
-- Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*.
+- Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*; the defaults are German or English, following the report language (or the interface language).
 
 **Own GGUF models directly in the browser**
 - Gear → *KI* → *Lokal im Browser · GGUF-Modelldatei (llama.cpp)*, then choose the `.gguf` file (e.g. from `%USERPROFILE%\.lmstudio\models`). No LM Studio, no server, no key; the file never leaves the PC. Only the llama.cpp runtime (wllama 3.8.1) is loaded from jsDelivr on first use.

@@ -47,7 +47,18 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(await page.inputValue('#aiEndpoint'), 'https://api.openai.com/v1/chat/completions');
     await page.locator('#aiKey').fill(KEY);
     await page.locator('#aiModel').fill('synthetic-model');
+    // Default prompts follow the author's language (report language, else interface language); edits are kept.
+    assert.match(await page.inputValue('#aiReviewPrompt'), /^Du bist ein Assistent zur Prüfung/, 'German interface: German default');
+    await page.selectOption('#aiReportLanguage', 'English');
+    assert.match(await page.inputValue('#aiReviewPrompt'), /^You are a radiology report review assistant/);
+    await page.locator('#aiRevisePrompt').evaluate(e => { e.closest('details').open = true; });
+    await page.locator('#aiRevisePrompt').fill('Custom revise prompt.');
     await page.selectOption('#aiReportLanguage', 'German');
+    assert.match(await page.inputValue('#aiReviewPrompt'), /^Du bist ein Assistent zur Prüfung/);
+    assert.equal(await page.inputValue('#aiRevisePrompt'), 'Custom revise prompt.', 'edited prompt kept');
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('.ai-reset').nth(1).click();
+    assert.match(await page.inputValue('#aiRevisePrompt'), /^Du bist ein Assistent zur Überarbeitung/);
     assert.equal(await page.locator('#aiDestination').textContent(), 'Befundziel: https://api.openai.com');
     await page.locator('#closeSettings').click();
     assert.equal(await page.locator('#aiChip').textContent(), 'KI: OpenAI · synthetic-model');
@@ -68,7 +79,7 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     const sent = apiCalls[0];
     assert.equal(sent.model, 'synthetic-model');
     assert.equal(sent.store, false);
-    assert.match(sent.messages[0].content, /Write review notes in German\.$/);
+    assert.match(sent.messages[0].content, /^Du bist ein Assistent zur Prüfung.*Antwortformat: Nur prüfen\..*Hinweise auf Deutsch schreiben\.$/s);
     const payload = JSON.parse(sent.messages[1].content);
     assert.deepEqual(payload.sections.map(s => s.id), ['findings', 'impression'], 'empty sections are not sent');
     assert.deepEqual(payload.sections[0].protected, ['Kein Pleuraerguss rechts.']);
