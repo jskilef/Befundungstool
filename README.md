@@ -50,7 +50,7 @@ Without an AI provider selected, the app makes no network requests.
 
 ## Data handling
 
-Report text stays in the browser unless you copy, export or print it, enable draft saving (stored on this device), or run an AI action. API modes send the report sections and template notes to the endpoint shown in the panel; browser-model modes process them locally but download runtime and model files. API keys are kept in memory only, never in browser storage. Use de-identified text and institution-approved services. See the [clinical and data notice](CLINICAL_NOTICE.md).
+Report text stays in the browser unless you copy, export or print it, enable draft saving (stored on this device), or run an AI action. API modes send the report sections and template notes to the endpoint shown in the panel; browser-model modes process them locally but download runtime and model files. API keys are never stored in plaintext: they stay in memory, in the password-encrypted configuration file, and (unless you choose *Vergessen*) in the encrypted copy in this browser. *Verbindung testen* sends a short fixed test text, not the report. On the hosted version, choosing a browser model also loads a small service worker from the same site (`coi-sw.js`) so the model can use several CPU threads; it transmits nothing. Use de-identified text and institution-approved services. See the [clinical and data notice](CLINICAL_NOTICE.md).
 
 ## Development
 

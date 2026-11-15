@@ -107,20 +107,27 @@
   }
 
   // Strict validation: anything off-contract is rejected so it can never replace an accepted result.
+  /* Hard limits for every provider (the schema LIMITS above only steer grammar-constrained backends).
+     Generous enough for normal cloud answers; a runaway answer is rejected as a whole and never
+     replaces an accepted result. */
+  const HARD = { raw: 200000, issues: 20, changes: 20, category: 200, detail: 2000, change: 500, text: 20000 };
   function parse(text, mode, sectionIds) {
+    if (String(text).length > HARD.raw) throw invalid();
     const clean = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     let r;
     try { r = JSON.parse(clean); } catch { throw invalid(); }
     if (!r || typeof r !== 'object' || Array.isArray(r) || !Array.isArray(r.issues) || !Array.isArray(r.changes)) throw invalid();
     if (r.issues.some(i => !i || typeof i.category !== 'string' || typeof i.detail !== 'string' || (i.section != null && typeof i.section !== 'string'))) throw invalid();
     if (r.changes.some(c => typeof c !== 'string')) throw invalid();
+    if (r.issues.length > HARD.issues || r.changes.length > HARD.changes || r.changes.some(c => c.length > HARD.change) ||
+        r.issues.some(i => i.category.length > HARD.category || i.detail.length > HARD.detail)) throw invalid();
     const known = new Set(sectionIds);
     const issues = r.issues.map(i => ({ category: i.category, detail: i.detail, section: known.has(i.section) ? i.section : null }));
     if (mode === 'review') return { issues, changes: r.changes.slice() };
     if (!Array.isArray(r.sections)) throw invalid();
     const seen = new Set();
     for (const s of r.sections) {
-      if (!s || typeof s.id !== 'string' || typeof s.text !== 'string' || !known.has(s.id) || seen.has(s.id)) throw invalid();
+      if (!s || typeof s.id !== 'string' || typeof s.text !== 'string' || s.text.length > HARD.text || !known.has(s.id) || seen.has(s.id)) throw invalid();
       seen.add(s.id);
     }
     return { sections: r.sections.map(s => ({ id: s.id, text: s.text })), issues, changes: r.changes.slice() };
@@ -138,5 +145,5 @@
     return true;
   }
 
-  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
+  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, HARD, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
 });

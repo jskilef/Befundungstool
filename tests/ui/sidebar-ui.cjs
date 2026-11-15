@@ -68,6 +68,25 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     assert.equal(await page.inputValue('#macroCode'), '');
     await page.locator('#macroDialog button:has-text("Abbrechen")').first().click().catch(() => page.keyboard.press('Escape'));
 
+    // Keyboard tabs (WAI-ARIA pattern): one tab stop, arrows/Home/End switch, panels are associated; dialogs are named.
+    await ui.openSettings(page, 'general');
+    const general = page.locator('[data-sheet-tab=general]');
+    await general.focus();
+    assert.deepEqual(await page.locator('[data-sheet-tab]').evaluateAll(t => t.map(x => x.tabIndex)), [0, -1, -1]);
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.sheetTab), 'ai');
+    assert.equal(await page.locator('[data-sheet-tab=ai]').getAttribute('aria-selected'), 'true');
+    assert(await page.locator('#sheetPanel-ai').isVisible());
+    assert.equal(await page.locator('[data-sheet-tab=ai]').getAttribute('aria-controls'), 'sheetPanel-ai');
+    await page.keyboard.press('End');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.sheetTab), 'file');
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.sheetTab), 'general', 'wraps around');
+    await ui.closeSettings(page);
+    for (const id of ['macroDialog', 'templateDialog', 'passwordDialog', 'licenseDialog']) assert(await page.locator('#' + id).getAttribute('aria-labelledby'), id + ' named');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(await page.evaluate(() => { const b = document.querySelector('#aiBanner') || document.body; b.classList.add('ai-busy'); const s = document.querySelector('#aiStatus'); return s ? getComputedStyle(s, '::before').animationName : 'none'; }), 'none', 'no spinner animation with reduced motion');
+
     assert.deepEqual(errors, []);
     console.log('Seitenleiste: Position, Breite, Bereiche, Einzel-/Leerzustand, Speicherung, Konfigurationsdatei; Wortersetzung als Standard bestanden.');
   } finally {

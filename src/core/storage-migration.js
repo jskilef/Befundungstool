@@ -8,19 +8,30 @@
   else {
     root.StorageMigration = api;
     try { api.migrate(root.localStorage); } catch (e) { /* storage unavailable: session-only mode */ }
-    enableIsolation(root);
+    root.BefundungstoolIsolation = { enable: () => enableIsolation(root) };
+    // Only when a browser model is selected: otherwise nothing is registered (no extra request).
+    let onDevice = false;
+    try { onDevice = api.onDeviceSelected(root.localStorage); } catch (e) { /* storage unavailable */ }
+    if (onDevice) enableIsolation(root);
   }
 
-  /* Hosted over HTTPS (GitHub Pages): register coi-sw.js once so the page becomes cross-origin
-     isolated and browser models can use several CPU threads. The launcher sends the headers itself;
-     file:// cannot be isolated. One reload after the first registration, guarded against loops. */
+  /* Hosted over HTTPS (GitHub Pages): register coi-sw.js so the page becomes cross-origin isolated
+     and browser models can use several CPU threads. The launcher sends the headers itself; file://
+     cannot be isolated. Isolation needs a reload. The page reloads by itself only while the report
+     is empty (window.BefundungstoolCanReload, set by the editor; audit A02): typed text is never
+     discarded. Otherwise isolation applies from the next page load. Guarded against loops. */
   function enableIsolation(win) {
     try {
       if (win.crossOriginIsolated || win.location.protocol !== 'https:' || !win.navigator.serviceWorker || !win.isSecureContext) return;
       win.navigator.serviceWorker.register('./coi-sw.js').then(registration => {
         if (win.navigator.serviceWorker.controller || win.sessionStorage.getItem('befundungstool-coi-reload')) return;
-        win.sessionStorage.setItem('befundungstool-coi-reload', '1');
-        const reload = () => win.location.reload();
+        const reload = () => {
+          // The worker can activate before the editor has started: decide once the page has loaded.
+          if (win.document.readyState !== 'complete') { win.addEventListener('load', reload, { once: true }); return; }
+          if (win.BefundungstoolCanReload?.() !== true) return;
+          win.sessionStorage.setItem('befundungstool-coi-reload', '1');
+          win.location.reload();
+        };
         if (registration.active) reload();
         else win.navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
       }).catch(() => { /* not available (e.g. unsupported host): single-threaded browser models */ });
@@ -52,5 +63,11 @@
     return copied;
   }
 
-  return { MARKER, KEYS, migrate };
+  // True when the remembered AI provider runs in the browser (only then is isolation useful).
+  const ON_DEVICE = ['webllm', 'wasm', 'gguf'];
+  function onDeviceSelected(storage) {
+    try { return ON_DEVICE.includes(JSON.parse(storage.getItem('befundungstool-ai-v1'))?.provider); } catch { return false; }
+  }
+
+  return { MARKER, KEYS, migrate, onDeviceSelected };
 });

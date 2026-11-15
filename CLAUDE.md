@@ -103,15 +103,18 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 
 - Review produces notes only; Revise produces an editable draft plus notes. Invalid/unstructured model output never replaces an accepted result.
 - Never switch providers silently and never fall back to cloud inference. Show where report text is sent before sending.
-- Results carry provenance (input snapshot); changed inputs mark them outdated; exporting/applying an outdated result needs confirmation. User edits made during a request are preserved.
+- Results carry provenance (input snapshot of **all** sections, frozen text, template, language, connection, model, prompt); any change marks them outdated; applying an outdated result needs confirmation. Changes made by applying suggestions from the same result are expected (`result.expected`). User edits made during a request are preserved.
+- Async ownership: every asynchronous workflow (model loads, model lists, vault writes) carries a generation/ticket and re-checks it after each `await`; obsolete work is dropped and its resources disposed once. Never let a late completion overwrite newer state.
+- Every provider's answer is checked against hard limits in `Contract.parse` (`HARD`); the JSON-schema `LIMITS` only steer grammar-constrained backends.
 - Render model text as text (no HTML injection). Keep diagnostics bounded; never surface raw upstream errors that might contain report text or keys.
 - Changing an endpoint's origin clears its key. Hidden local-mode fields never leak into requests.
 - Browser-model lifecycle: cancel/unload/clear terminates workers and revokes Blob URLs; local model files never fall back to online downloads.
 
 ## Data boundaries
 
+- Never discard typed report text automatically (no unguarded reloads; hosted isolation reloads only while `BefundungstoolCanReload()` is true). Never truncate imports or libraries silently: check limits first and refuse with a clear message; an unreadable stored library is kept, not overwritten.
 - Configuration (macros, templates, favorites, preferences) is separate from the optional local draft (report text, patient/reference, frozen ranges, builder findings). Config export never contains report content.
-- Browser storage keys are prefixed `befundungstool-` (never write `radnote-*` keys; radnote may share the origin). API keys are never written to browser storage.
+- Browser storage keys are prefixed `befundungstool-` (never write `radnote-*` keys; radnote may share the origin). API keys are never written to browser storage in plaintext (only the encrypted vault).
 - Browser storage may be unavailable: degrade to session-only, never crash.
 - Tests, fixtures, logs and examples use **synthetic data only**. No real patient data or credentials anywhere in the repo.
 - Legal: MIT. Keep DRG/AGIT/Fleischner/AO/ACR attribution (docs/radnote/TERMINOLOGY.md) and third-party runtime notices. Never claim clinical, DRG, or vendor certification.

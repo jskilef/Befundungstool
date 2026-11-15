@@ -70,6 +70,42 @@ const json = body => ({ status: 200, contentType: 'application/json', headers: {
     assert.equal(await page.inputValue('#aiProvider'), 'lmstudio');
     assert.equal(await page.inputValue('#aiModel'), 'radgen-ministral-lora');
 
+    // Audit A09: a late LM Studio list never lands in another provider's settings.
+    // Hosted compatible APIs get the key for their model list.
+    {
+      let release, modelAuth = null;
+      const held = new Promise(r => { release = r; });
+      const second = await browser.newContext();
+      await second.route('**/*', async route => {
+        const url = route.request().url();
+        if (url.startsWith('https://befundungstool.test/')) return route.fulfill({ contentType: 'text/html', body: html });
+        if (url === 'http://127.0.0.1:1234/v1/models') { await held; return route.fulfill(json({ data: [{ id: 'synthetic-old-lm-model' }] })); }
+        if (url.startsWith('https://models.test/')) {
+          if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization', 'Access-Control-Allow-Methods': 'GET' } });
+          modelAuth = route.request().headers().authorization;
+          return route.fulfill(json({ data: [{ id: 'synthetic-hosted-model' }] }));
+        }
+        external.push(url);
+        return route.abort();
+      });
+      const p2 = await second.newPage();
+      p2.on('pageerror', e => errors.push(e.message));
+      await p2.goto('https://befundungstool.test/');
+      await ui.openSettings(p2, 'ai');
+      await p2.selectOption('#aiProvider', 'lmstudio');
+      await p2.selectOption('#aiProvider', 'compatible');
+      await p2.locator('#aiEndpoint').fill('https://models.test/v1');
+      await p2.locator('#aiKey').fill('sk-synthetic-models');
+      release();
+      await p2.waitForTimeout(300);
+      assert.equal(await p2.inputValue('#aiModel'), '', 'old list ignored');
+      await p2.locator('#aiLoadModels').click();
+      await p2.waitForFunction(() => document.querySelector('#aiStatus').textContent.startsWith('Modelle gefunden: 1'));
+      assert.equal(modelAuth, 'Bearer sk-synthetic-models');
+      assert.equal(await p2.inputValue('#aiModel'), 'synthetic-hosted-model');
+      await second.close();
+    }
+
     assert.deepEqual(external, []);
     assert.deepEqual(errors, []);
     console.log('LM Studio UI: Modellliste, verstecktes Schlüsselfeld, strukturierte Anfrage, Vorschläge, Erreichbarkeitshinweis, gespeicherte Auswahl bestanden.');

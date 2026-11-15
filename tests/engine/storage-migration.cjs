@@ -33,4 +33,10 @@ assert.equal(own.getItem('befundungstool-macros-v1'), null);
 assert.equal(own.getItem(M.MARKER), 'none');
 
 assert.deepEqual(M.migrate(null), []);
+
+// Isolation (service worker) only when a browser model is the remembered provider (audit A02).
+assert.equal(M.onDeviceSelected(storage()), false);
+assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': '{"provider":"openai"}' })), false);
+assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': '{"provider":"gguf"}' })), true);
+assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': 'not json' })), false);
 console.log('Speichermigration: einmalige Übernahme, radnote-Daten unverändert, keine Wiederherstellung gelöschter Daten bestanden.');

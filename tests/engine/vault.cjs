@@ -45,5 +45,28 @@ const ai = { provider: 'openai', reportLanguage: 'German', profiles: { openai: {
 
   reopened.forget();
   assert(!reopened.exists() && !reopened.unlocked);
+
+  // Audit A04: a write still being encrypted cannot undo "Forget" or overwrite a newer state.
+  const s2 = storage();
+  const racing = V.create(s2);
+  await racing.save({ synthetic: 1 }, 'synthetic-password-123');
+  const pending = racing.save({ synthetic: 2 });
+  racing.forget();
+  assert.equal(await pending, false);
+  assert(!racing.exists(), 'forget stays forgotten');
+  const creating = racing.save({ synthetic: 3 }, 'synthetic-password-123');
+  racing.forget();
+  assert.equal(await creating, false);
+  assert(!racing.exists() && !racing.unlocked, 'forget during creation wins');
+  await racing.save({ synthetic: 4 }, 'synthetic-password-123');
+  const older = racing.save({ synthetic: 5 });
+  const newer = racing.save({ synthetic: 6 });
+  assert.deepEqual([await older, await newer], [false, true], 'only the latest re-seal writes');
+  assert.equal((await V.create(s2).unlock('synthetic-password-123')).synthetic, 6);
+  const unlocking = V.create(s2);
+  const opening = unlocking.unlock('synthetic-password-123');
+  unlocking.forget();
+  await assert.rejects(opening);
+  assert(!unlocking.unlocked, 'forget during unlock leaves it locked');
   console.log('Browser-Tresor: nur Chiffretext gespeichert, Entsperren, automatisches Neuverschlüsseln, Trennung von Dateien, Vergessen bestanden.');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -91,5 +91,59 @@ const { buildGguf, readGguf } = require('../helpers/gguf.cjs');
   const offline = G.createRunner({ importer: async () => { throw new TypeError('Failed to fetch'); } });
   offline.setFile(file);
   await assert.rejects(offline.request([]), /could not load from jsDelivr/);
+  // Audit A03: abort, unload or a file change while a model is loading leaves nothing behind.
+  function controllable() {
+    const log = { loads: [], exits: 0, chats: 0 };
+    let releaseLoad;
+    class SlowWllama {
+      constructor() { this.name = null; }
+      isSupportWebGPU() { return false; }
+      async loadModel(files) { log.loads.push(files.length); await new Promise(r => { releaseLoad = r; }); }
+      async createChatCompletion() { log.chats++; return { choices: [{ finish_reason: 'stop', message: { content: '{}' } }] }; }
+      async exit() { log.exits++; }
+    }
+    const r = G.createRunner({ importer: async () => ({ Wllama: SlowWllama }) });
+    const waitLoading = async () => { while (!releaseLoad) await new Promise(res => setTimeout(res, 5)); };
+    return { r, log, waitLoading, finish: () => releaseLoad() };
+  }
+  const fileA = new File([original], 'a.gguf', { lastModified: 10 });
+  const fileB = new File([original], 'b.gguf', { lastModified: 20 });
+  {
+    const { r, log, waitLoading, finish } = controllable();
+    r.setFile(fileA);
+    const c = new AbortController();
+    const pending = r.request([{ role: 'user', content: 'x' }], { signal: c.signal });
+    await waitLoading();
+    c.abort();
+    finish();
+    await assert.rejects(pending, e => e.name === 'AbortError');
+    assert.equal(r.loaded, false, 'abort during load: nothing loaded');
+    assert.equal(log.exits, 1, 'loading instance disposed once');
+    assert.equal(log.chats, 0);
+  }
+  {
+    const { r, log, waitLoading, finish } = controllable();
+    r.setFile(fileA);
+    const pending = r.request([{ role: 'user', content: 'x' }]);
+    await waitLoading();
+    r.stop();
+    finish();
+    await assert.rejects(pending, new RegExp(G.SUPERSEDED.slice(0, 40)));
+    assert.equal(r.loaded, false, 'unload during load: nothing loaded');
+    assert.equal(log.chats, 0, 'no generation after unload');
+    assert.equal(log.exits, 1);
+  }
+  {
+    const { r, log, waitLoading, finish } = controllable();
+    r.setFile(fileA);
+    const pending = r.request([{ role: 'user', content: 'x' }]);
+    await waitLoading();
+    r.setFile(fileB);
+    finish();
+    await assert.rejects(pending, /unloaded or changed/);
+    assert.equal(r.loaded, false, 'A never becomes current after switching to B');
+    assert.equal(log.exits, 1);
+    assert.equal(r.file, fileB);
+  }
   console.log('GGUF: Kopfzeile, virtuelle Teilung (bytegenau, llama-gguf-split-Format), Runner mit Laden/Wiederverwenden/Abbruch/Fehlern bestanden.');
 })().catch(error => { console.error(error); process.exit(1); });

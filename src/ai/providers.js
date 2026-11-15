@@ -175,12 +175,14 @@
       : 'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (usually ending in /chat/completions) or try the local launcher.';
   }
 
-  async function listModels(endpoint, { signal, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '' } = {}) {
-    const url = new URL(validateURL(endpoint));
+  // key: sent as a Bearer token when given (hosted APIs such as Mistral require it for the model list).
+  async function listModels(endpoint, { signal, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '', key = '' } = {}) {
+    const url = new URL(chatEndpoint(validateURL(endpoint)));
     url.pathname = url.pathname.replace(/\/chat\/completions\/?$/, '').replace(/\/$/, '') + '/models';
+    const auth = key ? { Authorization: 'Bearer ' + key } : {};
     const response = viaLocal
-      ? await fetchImpl('/api', { method: 'POST', redirect: 'error', signal, headers: { 'Content-Type': 'application/json', 'x-local-token': localToken }, body: JSON.stringify({ url: url.href, method: 'GET', headers: {} }) })
-      : await fetchImpl(url.href, { method: 'GET', redirect: 'error', signal });
+      ? await fetchImpl('/api', { method: 'POST', redirect: 'error', signal, headers: { 'Content-Type': 'application/json', 'x-local-token': localToken }, body: JSON.stringify({ url: url.href, method: 'GET', headers: auth }) })
+      : await fetchImpl(url.href, { method: 'GET', redirect: 'error', signal, ...(key ? { headers: auth } : {}) });
     if (!response.ok) throw new ProviderError(HINTS[response.status] || 'Provider request failed.', { status: response.status });
     const data = await response.json().catch(() => null);
     if (!Array.isArray(data?.data)) throw new ProviderError('The endpoint returned non-JSON data. Check its URL.');

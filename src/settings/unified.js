@@ -23,6 +23,8 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const isObject = value => !!value && typeof value === 'object' && !Array.isArray(value);
   const fail = () => { throw new Error('Invalid configuration file'); };
+  const TOO_MANY = "This Report Studio file has more than 100 templates. Nothing was imported.";
+  const TOO_BIG = "A Report Studio template exceeds the limits (30 sections, 80-character name, text length). Nothing was imported.";
 
   // Same rules as Report Studio: HTTPS, or HTTP on a loopback host; no credentials, query or fragment.
   function validEndpoint(value) {
@@ -90,7 +92,8 @@
       .map(s => ({ label: s.label, defaultText: s.text.join('\n').replace(/^\n+|\s+$/g, '') }))
       .filter((f, i) => !(i === 0 && f.label === 'Text' && !f.defaultText));
     if (!fields.length) fields.push({ label: 'Befund', defaultText: '' });
-    return fields.slice(0, 30).map(f => ({ id: newId(), label: f.label, defaultText: f.defaultText }));
+    // No silent truncation (audit A06): callers reject templates with more than 30 fields.
+    return fields.map(f => ({ id: newId(), label: f.label, defaultText: f.defaultText }));
   }
 
   function isReportStudioPlain(data) {
@@ -111,13 +114,15 @@
     if (data.prompts !== undefined) ai.prompts = data.prompts;
     if (data.customModelDtype !== undefined) ai.customModelDtype = data.customModelDtype;
     if (!validAi(ai)) fail();
-    const templates = data.templates.slice(0, 100).map(t => ({
+    // Limits are checked up front and the whole import is refused: nothing is dropped or shortened (audit A06).
+    if (data.templates.length > 100) throw new Error(TOO_MANY);
+    const templates = data.templates.map(t => ({
       id: newId(),
-      name: t.name.trim().slice(0, 80),
+      name: t.name.trim(),
       fields: splitTemplateBody(t.body, newId),
-      ...(t.instructions.trim() ? { aiInstructions: t.instructions.slice(0, MAX_INSTRUCTIONS) } : {})
+      ...(t.instructions.trim() ? { aiInstructions: t.instructions } : {})
     }));
-    if (!RadnoteConfig.validTemplates(templates)) fail();
+    if (!RadnoteConfig.validTemplates(templates) || !templates.every(t => validInstructions(t.aiInstructions))) throw new Error(TOO_BIG);
     return { kind: 'report-studio', templates, ai: normalizeAi(ai) };
   }
 

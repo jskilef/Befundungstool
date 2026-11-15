@@ -157,6 +157,34 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(await page.inputValue('#impression'), 'Unauffaellig.', 'report text untouched');
     assert.equal(await page.inputValue('#findings'), 'Kein Pleuraerguss rechts. Herz normal gross. Neu.\n\nKein Pleuraerguss rechts. Herz normal groß.');
 
+    // Audit A01: applying one suggestion keeps the others current; an edit in another section makes them outdated.
+    const findingsBefore = await page.inputValue('#findings');
+    reply = () => ({ status: 200, body: completion({ sections: [{ id: 'impression', text: 'Unauffälliger Befund.' }, { id: 'findings', text: findingsBefore + ' Ergänzt.' }], issues: [{ category: 'Hinweis', detail: 'Synthetisch.', section: 'impression' }], changes: [] }) });
+    await page.locator('#aiRevise').click();
+    await waitStatus('Überarbeitung abgeschlossen');
+    // Audit A08: the inline diff keeps paragraph breaks.
+    const diffBody = page.locator('.ai-section[data-section=findings] .diff-body');
+    assert.equal(await diffBody.evaluate(e => getComputedStyle(e).whiteSpace), 'pre-wrap');
+    assert.match(await diffBody.evaluate(e => e.innerText), /Neu\.\n\nKein Pleuraerguss/);
+    let confirmations = 0;
+    const countDialog = d => { confirmations++; d.dismiss(); };
+    page.on('dialog', countDialog);
+    await page.locator('.ai-section[data-section=impression] [data-apply=replace]').click();
+    assert.equal(await page.inputValue('#impression'), 'Unauffälliger Befund.');
+    assert.equal(confirmations, 0, 'own result applied without a warning');
+    const findingsState = page.locator('.ai-section[data-section=findings] .ai-section-state');
+    assert.match(await findingsState.textContent(), /^Erstellt/, 'applying a suggestion from the same result keeps the others current');
+    assert.match(await page.locator('#aiNotes .ai-provenance').textContent(), /^Erstellt/);
+    await page.locator('#impression').press('End');
+    await page.locator('#impression').type(' Anders.');
+    assert.match(await findingsState.textContent(), /^Veraltet/, 'edit in another section makes the suggestion outdated');
+    assert.match(await page.locator('#aiNotes .ai-provenance').textContent(), /^Veraltet/);
+    await page.locator('.ai-section[data-section=findings] [data-apply=append]').click();
+    assert.equal(confirmations, 1, 'outdated suggestion asks first');
+    assert.equal(await page.inputValue('#findings'), findingsBefore, 'declined: report unchanged');
+    page.off('dialog', countDialog);
+    await page.locator('#aiClear').click();
+
     // Invalid output: rejected, raw text shown as text, previous result kept and marked.
     reply = () => ({ status: 200, body: completion({ sections: [{ id: 'impression', text: 'Unauffälliger Befund.' }, { id: 'findings', text: 'Synthetischer Befund.' }], issues: [], changes: [] }) });
     await page.locator('#aiRevise').click();

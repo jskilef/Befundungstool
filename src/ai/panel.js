@@ -15,7 +15,7 @@
 
   const DE = {
     'AI review': 'KI-Prüfung',
-    'Optional. Report text is sent only when you click Review, Revise or Test connection.': 'Optional. Befundtext wird nur beim Klick auf Prüfen, Überarbeiten oder Verbindung testen gesendet.',
+    'Optional. Report text is sent only when you click Review or Revise. Test connection sends a short fixed test text.': 'Optional. Befundtext wird nur beim Klick auf Prüfen oder Überarbeiten gesendet. Verbindung testen sendet einen kurzen festen Testtext.',
     'Review': 'Prüfen', 'Revise': 'Überarbeiten', 'Cancel': 'Abbrechen',
     'Connection': 'Verbindung', 'Provider': 'Anbieter', 'No AI': 'Keine KI', 'OpenAI': 'OpenAI', 'Google Gemini': 'Google Gemini',
     'Other OpenAI-compatible API': 'Andere OpenAI-kompatible API', 'Endpoint': 'Endpunkt', 'API key': 'API-Schlüssel', 'Model ID': 'Modell-ID',
@@ -116,7 +116,8 @@
     'This GGUF file is already split. Select the first part instead.': 'Diese GGUF-Datei ist bereits geteilt. Stattdessen den ersten Teil wählen.',
     'The llama.cpp browser runtime could not load from jsDelivr. Check network access or workplace download restrictions.': 'Die llama.cpp-Browserlaufzeit konnte nicht von jsDelivr geladen werden. Netzwerkzugang oder Download-Beschränkungen am Arbeitsplatz prüfen.',
     'The model does not fit into browser memory. Close other tabs or choose a smaller model.': 'Das Modell passt nicht in den Browserspeicher. Andere Tabs schließen oder ein kleineres Modell wählen.',
-    'The browser runtime could not load this model. Its architecture may not be supported yet; LM Studio can still run it.': 'Die Browserlaufzeit konnte dieses Modell nicht laden. Die Architektur wird eventuell noch nicht unterstützt; LM Studio kann es weiterhin ausführen.'
+    'The browser runtime could not load this model. Its architecture may not be supported yet; LM Studio can still run it.': 'Die Browserlaufzeit konnte dieses Modell nicht laden. Die Architektur wird eventuell noch nicht unterstützt; LM Studio kann es weiterhin ausführen.',
+    'The browser model was unloaded or changed while it was working. Run the action again.': 'Das Browser-Modell wurde während der Arbeit entladen oder gewechselt. Die Aktion erneut ausführen.'
   });
   Object.assign(DE, {
     'LM Studio (on this device)': 'LM Studio (auf diesem Gerät)', 'Load models': 'Modelle laden', 'Loading models…': 'Modelle werden geladen…',
@@ -223,7 +224,7 @@
       ui.download, ui.progress
     ]);
     const connection = node('div', { id: 'aiConnection', class: 'ai-panel' }, [
-      node('p', { class: 'hint', text: 'Optional. Report text is sent only when you click Review, Revise or Test connection.' }),
+      node('p', { class: 'hint', text: 'Optional. Report text is sent only when you click Review or Revise. Test connection sends a short fixed test text.' }),
       node('div', { class: 'ai-grid' }, [field('Provider', ui.provider), ui.modelField, ui.localModelField, field('Report language', ui.language)]),
       ui.apiRows, ui.localRows,
       ui.ggufRows = node('div', { id: 'aiGgufRows' }, [
@@ -402,6 +403,7 @@
     }
 
     ui.provider.onchange = () => {
+      ++modelsTicket;
       readFormFor(settings.provider);
       ++folderRevision;
       runner.stop();
@@ -410,19 +412,32 @@
       fillForm();
       readForm();
       if (settings.provider === 'lmstudio') loadModels();
+      // Browser models use several CPU threads only on a cross-origin isolated page (hosted: service worker).
+      if (isOnDevice(settings.provider)) root.BefundungstoolIsolation?.enable();
     };
     // Lists the server's models (GET .../models). Sends no report text.
+    /* Audit A09: a list that arrives after the provider or endpoint changed is ignored; only the
+       latest request counts, and it gives up after 15 s. */
+    let modelsTicket = 0;
     async function loadModels() {
+      const ticket = ++modelsTicket, provider = ui.provider.value, endpoint = ui.endpoint.value.trim();
+      const current = () => ticket === modelsTicket && ui.provider.value === provider && ui.endpoint.value.trim() === endpoint;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
       setStatus('Loading models…');
       try {
-        const ids = await Providers.listModels(ui.endpoint.value.trim(), { viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '' });
+        const ids = await Providers.listModels(endpoint, { signal: controller.signal, key: provider === 'lmstudio' ? '' : ui.key.value.trim(), viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '' });
+        if (!current()) return;
         ui.modelList.replaceChildren(...ids.map(id => node('option', { value: id })));
         if (!ids.length) { setStatus('No models found.', true); return; }
         if (!ui.model.value.trim()) { ui.model.value = ids[0]; readForm(); }
         setStatus('Models found:', false, ' ' + ids.length + ' · ' + ids.join(', '));
       } catch (error) {
+        if (!current()) return;
         const [key, suffix] = describeError(error);
         setStatus(key, true, suffix);
+      } finally {
+        clearTimeout(timer);
       }
     }
     ui.loadModels.onclick = loadModels;
@@ -526,10 +541,19 @@
       };
     }
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-    const resultStale = result => !!result && !same(result.snapshot, snapshot(result.snapshot.mode));
+    /* A result is current only while the complete request input is unchanged: every section, frozen
+       text, template, language, connection, model and prompt (the model saw all sections, so an edit
+       elsewhere can invalidate a suggestion). Sections changed by applying a suggestion from the same
+       result are expected (`result.expected`, shared by the notes and the revision of one request),
+       so several suggestions can be applied one after another without a warning. */
+    function resultStale(result) {
+      if (!result) return false;
+      const base = result.snapshot;
+      const sections = base.sections.map(s => result.expected?.get(s.id) || s);
+      return !same({ ...base, sections }, snapshot(base.mode));
+    }
     function sectionStale(section) {
-      const current = bridge.getSections().find(s => s.id === section.id);
-      return !current || current.text !== section.original || !same(revision.snapshot.template, bridge.getTemplate()) || revision.snapshot.reportLanguage !== settings.reportLanguage;
+      return !bridge.getSections().some(s => s.id === section.id) || resultStale(revision);
     }
 
     // Notes: full list in the side tab (click jumps to the section) and a short note under each section.
@@ -622,8 +646,11 @@
       const result = bridge.apply(section.id, text, mode);
       if (!result.ok) { bridge.notify(result.message); return; }
       section.applied = mode;
+      const after = bridge.getSections().find(s => s.id === section.id);
+      if (after && revision?.expected) revision.expected.set(section.id, { id: after.id, text: after.text, protected: after.protected });
       bridge.notify('Applied to the report.');
       removeCard(section);
+      refresh();
     }
 
     // Applied or discarded suggestions disappear; "Close AI results" removes everything without a new report.
@@ -701,12 +728,13 @@
         }
         if (mode === 'revise' && draftEditedDuringRequest) throw new Error('Draft changed during generation. Your edits were kept; run Revise again.');
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        notes = { snapshot: before, issues: parsed.issues, changes: parsed.changes, time };
+        const expected = new Map();
+        notes = { snapshot: before, expected, issues: parsed.issues, changes: parsed.changes, time };
         notesFailed = false;
         if (mode === 'revise') {
           const proposals = new Map(parsed.sections.map(s => [s.id, s.text]));
           revision = {
-            snapshot: before, time,
+            snapshot: before, expected, time,
             sections: sections.filter(s => proposals.has(s.id)).map(s => {
               const proposed = proposals.get(s.id);
               return { id: s.id, label: s.label, original: s.text, protected: s.protected, proposed, protectedOk: Contract.protectedIntact(s.protected, proposed), applied: false, discarded: false, el: null };

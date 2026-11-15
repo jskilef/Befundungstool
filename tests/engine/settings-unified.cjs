@@ -94,6 +94,16 @@ const empty = { macros: [], templates: [], chestFavorites: [], settings: { ...se
   assert.equal(rs.ai.profiles.openai.apiKey, 'sk-synthetic-rs');
   assert.equal(rs.ai.prompts.revise, 'Synthetic revise prompt.');
 
+  // Audit A06: limits are checked up front; nothing is dropped or shortened silently.
+  const many = n => ({ ...reportStudio, templates: Array.from({ length: n }, (_, i) => ({ name: 'Vorlage ' + i, body: 'Befund:\n', instructions: '' })) });
+  assert.equal(S.parse(many(100), newId).templates.length, 100);
+  assert.throws(() => S.parse(many(101), newId), /more than 100 templates\. Nothing was imported/);
+  const headings = n => Array.from({ length: n }, (_, i) => 'Abschnitt ' + i + ':\nText ' + i).join('\n');
+  assert.equal(S.splitTemplateBody(headings(31), newId).length, 31, 'no field dropped');
+  assert.equal(S.parse({ ...reportStudio, templates: [{ name: 'Dreißig', body: headings(30), instructions: '' }] }, newId).templates[0].fields.at(-1).defaultText, 'Text 29');
+  assert.throws(() => S.parse({ ...reportStudio, templates: [{ name: 'Lang', body: headings(31), instructions: '' }] }, newId), /exceeds the limits.*Nothing was imported/);
+  assert.throws(() => S.parse({ ...reportStudio, templates: [{ name: 'N'.repeat(81), body: 'Befund:\n', instructions: '' }] }, newId), /exceeds the limits/);
+
   // Importing Report Studio keeps editor settings and macros, appends templates, renames name conflicts.
   const rsMerged = S.merge(merged, rs, newId);
   assert.deepEqual(rsMerged.settings, merged.settings);

@@ -34,6 +34,12 @@ const { createServer } = require('../../server/local-server.cjs');
   await P.listModels(P.DEFAULT_ENDPOINTS.lmstudio, { viaLocal: true, localToken: 'tok', fetchImpl: async (url, init) => { seen = { url, init }; return ok(listing); } });
   assert.equal(seen.url, '/api');
   assert.deepEqual(JSON.parse(seen.init.body), { url: 'http://127.0.0.1:1234/v1/models', method: 'GET', headers: {} });
+  // Hosted APIs: key as Bearer token, base URLs completed (Mistral's /v1 → /v1/models).
+  await P.listModels('https://api.eu.mistral.ai/v1', { key: 'sk-synthetic', fetchImpl: async (url, init) => { seen = { url, init }; return ok(listing); } });
+  assert.equal(seen.url, 'https://api.eu.mistral.ai/v1/models');
+  assert.equal(seen.init.headers.Authorization, 'Bearer sk-synthetic');
+  await P.listModels('https://api.eu.mistral.ai/v1', { key: 'sk-synthetic', viaLocal: true, localToken: 'tok', fetchImpl: async (url, init) => { seen = { url, init }; return ok(listing); } });
+  assert.deepEqual(JSON.parse(seen.init.body).headers, { Authorization: 'Bearer sk-synthetic' });
   await assert.rejects(P.listModels(P.DEFAULT_ENDPOINTS.lmstudio, { fetchImpl: async () => ({ ok: false, status: 404, json: async () => ({}) }) }), e => e.status === 404);
   assert.match(P.connectionError(false, 'lmstudio'), /enable CORS/);
 
@@ -77,6 +83,17 @@ const { createServer } = require('../../server/local-server.cjs');
   assert.equal(revise.properties.changes.maxItems, 6);
   assert.equal(Contract.responseSchema('review', { sections }).properties.sections, undefined);
   assert.equal(Contract.responseSchema('revise').properties.sections.items.properties.text.maxLength, undefined, 'unbounded without sections');
+
+  // Hard limits apply to every provider's answer (audit: parser bounds).
+  const ok = { sections: [{ id: 'findings', text: 'x' }], issues: Array.from({ length: 20 }, () => ({ category: 'c', detail: 'd'.repeat(2000) })), changes: [] };
+  assert.equal(Contract.parse(JSON.stringify(ok), 'revise', ['findings']).issues.length, 20);
+  for (const bad of [
+    { ...ok, issues: [...ok.issues, { category: 'c', detail: 'd' }] },
+    { ...ok, issues: [{ category: 'c', detail: 'd'.repeat(2001) }] },
+    { ...ok, changes: Array.from({ length: 21 }, () => 'x') },
+    { ...ok, sections: [{ id: 'findings', text: 'x'.repeat(20001) }] }
+  ]) assert.throws(() => Contract.parse(JSON.stringify(bad), 'revise', ['findings']), /Unexpected response format/);
+  assert.throws(() => Contract.parse(' '.repeat(200001), 'review', []), /Unexpected response format/);
 
   assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{"sections":[' } }] }, 'compatible'),
     e => e.code === 'length' && e.partial === '{"sections":[' && /length limit/.test(e.hint));

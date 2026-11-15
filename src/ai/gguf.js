@@ -165,40 +165,68 @@
   }
 
   // importer and FileImpl are injectable for tests.
+  /* Lifecycle (audit A03): every unload, cancellation or file change advances `generation`. Work that
+     started under an older generation is obsolete: after each asynchronous step it is rejected and its
+     runtime instance is disposed (once), so a cancelled or replaced load never becomes current and the
+     model in use always matches the selected file. */
+  const SUPERSEDED = 'The browser model was unloaded or changed while it was working. Run the action again.';
   function createRunner({ onProgress = () => {}, importer = url => import(url), FileImpl = globalThis.File } = {}) {
-    let wllama = null, loadedKey = null, file = null, busy = false;
+    let wllama = null, loadedKey = null, file = null, busy = false, generation = 0;
+    const pending = new Set();          // instances still loading
+    const disposed = new WeakSet();
     const keyOf = f => (f ? [f.name, f.size, f.lastModified].join(':') : null);
 
+    async function dispose(instance) {
+      if (!instance || disposed.has(instance)) return;
+      disposed.add(instance);
+      pending.delete(instance);
+      try { await instance.exit(); } catch { /* worker already gone */ }
+    }
+
     async function release() {
+      generation++;
       const current = wllama;
       wllama = null;
       loadedKey = null;
-      if (current) { try { await current.exit(); } catch { /* worker already gone */ } }
+      await Promise.all([current, ...pending].map(dispose));
     }
 
     async function ensureLoaded() {
       if (!file) throw new Error('Choose a GGUF model file.');
-      if (wllama && loadedKey === keyOf(file)) return wllama;
+      const target = file, key = keyOf(target);
+      if (wllama && loadedKey === key) return wllama;
       await release();
-      onProgress('Loading browser model:', ' ' + file.name);
+      const started = generation;
+      const obsolete = () => started !== generation;
+      onProgress('Loading browser model:', ' ' + target.name);
       let lib;
       try { lib = await importer(WLLAMA_BASE + 'index.js'); } catch {
         throw new Error('The llama.cpp browser runtime could not load from jsDelivr. Check network access or workplace download restrictions.');
       }
+      if (obsolete()) throw new Error(SUPERSEDED);
       const instance = new lib.Wllama({ default: WLLAMA_BASE + 'wasm/wllama.wasm' }, { suppressNativeLog: true });
-      const shards = await split(file);
-      const files = shards.map((blob, i) => new FileImpl([blob], shardName('model', i, shards.length)));
+      pending.add(instance);
       try {
-        await instance.loadModel(files, { n_ctx: CONTEXT_TOKENS });
+        const shards = await split(target);
+        if (obsolete()) throw new Error(SUPERSEDED);
+        const files = shards.map((blob, i) => new FileImpl([blob], shardName('model', i, shards.length)));
+        try {
+          await instance.loadModel(files, { n_ctx: CONTEXT_TOKENS });
+        } catch (error) {
+          if (obsolete()) throw new Error(SUPERSEDED);
+          const message = String(error?.message || '');
+          throw new Error(/memory|alloc/i.test(message)
+            ? 'The model does not fit into browser memory. Close other tabs or choose a smaller model.'
+            : 'The browser runtime could not load this model. Its architecture may not be supported yet; LM Studio can still run it.');
+        }
+        if (obsolete()) throw new Error(SUPERSEDED);
       } catch (error) {
-        try { await instance.exit(); } catch { /* ignore */ }
-        const message = String(error?.message || '');
-        throw new Error(/memory|alloc/i.test(message)
-          ? 'The model does not fit into browser memory. Close other tabs or choose a smaller model.'
-          : 'The browser runtime could not load this model. Its architecture may not be supported yet; LM Studio can still run it.');
+        await dispose(instance);
+        throw error;
       }
+      pending.delete(instance);
       wllama = instance;
-      loadedKey = keyOf(file);
+      loadedKey = key;
       return instance;
     }
 
@@ -216,6 +244,7 @@
       signal?.addEventListener('abort', abort, { once: true });
       try {
         const instance = await ensureLoaded();
+        const started = generation;
         if (signal?.aborted) throw abortError();
         onProgress('Generating locally…');
         const response = await instance.createChatCompletion({
@@ -223,6 +252,7 @@
           ...(schema ? { response_format: { type: 'json_schema', json_schema: { name: 'befundungstool_result', strict: true, schema } } } : {})
         });
         if (signal?.aborted) throw abortError();
+        if (started !== generation) throw new Error(SUPERSEDED);
         onProgress('Browser model ready.', instance.isSupportWebGPU?.() ? ' (WebGPU)' : ' (CPU)');
         return response;
       } catch (error) {
@@ -235,7 +265,7 @@
     }
 
     return {
-      // A different file unloads the current model; the same file keeps it loaded.
+      // A different file unloads the current model and invalidates a load in progress; the same file keeps it.
       setFile(next) { if (keyOf(next) !== keyOf(file)) { file = next || null; release(); } },
       get file() { return file; },
       get loaded() { return !!wllama; },
@@ -244,5 +274,5 @@
     };
   }
 
-  return { TYPE, DEFAULT_SHARD_BYTES, WLLAMA_VERSION, parse, plan, split, shardName, createRunner };
+  return { TYPE, DEFAULT_SHARD_BYTES, WLLAMA_VERSION, SUPERSEDED, parse, plan, split, shardName, createRunner };
 });

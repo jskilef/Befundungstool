@@ -25,6 +25,9 @@ exports/
 *.env
 .env*
 
+# Other coding tools' local state
+.codex/
+
 # OS / editor
 .DS_Store
 Thumbs.db
