@@ -281,3 +281,7 @@ html[data-side-empty=true] .side{display:none!important}
   :root[data-palette][data-theme] body{background:#fff;color:#000}
 }
 @media (prefers-reduced-motion:reduce){:root[data-palette][data-theme] *,:root[data-palette][data-theme] *::before{transition:none!important;animation:none!important}}
+/* Imported AI connection: what would change, shown before it becomes active */
+:root[data-palette][data-theme] .ai-import-list{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:16px 0;font-size:14px;line-height:20px}
+:root[data-palette][data-theme] .ai-import-list dt{color:var(--md-sys-color-on-surface-variant);font-weight:500}
+:root[data-palette][data-theme] .ai-import-list dd{margin:0;color:var(--md-sys-color-on-surface);white-space:pre-wrap;overflow-wrap:anywhere}

@@ -127,12 +127,27 @@ Object.assign(translations,{'Saved as one password-encrypted file, including API
 function downloadFile(name,text,type){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 // AI connection, prompts and report language. API keys stay in memory only (never browser storage, D5).
 Object.assign(translations,AiPanel.DE);
-Object.assign(translations,{'Settings':'Einstellungen','General':'Allgemein','AI':'KI','Configuration file':'Konfigurationsdatei','Appearance':'Darstellung','Language':'Sprache','Macros':'Textbausteine','AI notes':'KI-Hinweise','Saved keys in this browser':'Im Browser gespeicherte Schlüssel','Save encrypted in this browser':'Verschlüsselt im Browser speichern','Forget':'Vergessen','Later':'Später','Enter your password to load your AI settings and API keys. Everything else works without unlocking.':'Passwort eingeben, um KI-Einstellungen und API-Schlüssel zu laden. Alles andere funktioniert auch ohne Entsperren.','Keep an encrypted copy in this browser':'Verschlüsselte Kopie in diesem Browser behalten','No keys are saved in this browser. Keys you enter stay in memory until the page is closed.':'Keine Schlüssel in diesem Browser gespeichert. Eingegebene Schlüssel bleiben bis zum Schließen der Seite im Arbeitsspeicher.','Encrypted copy saved in this browser · unlocked. Changes are saved automatically.':'Verschlüsselte Kopie in diesem Browser gespeichert · entsperrt. Änderungen werden automatisch gespeichert.','Encrypted copy saved in this browser · locked.':'Verschlüsselte Kopie in diesem Browser gespeichert · gesperrt.','Remove the encrypted copy from this browser? Your configuration file is not affected.':'Verschlüsselte Kopie aus diesem Browser entfernen? Die Konfigurationsdatei bleibt unverändert.','Configuration unlocked':'Konfiguration entsperrt','Encrypted copy removed':'Verschlüsselte Kopie entfernt','Encrypted copy saved in this browser':'Verschlüsselte Kopie in diesem Browser gespeichert'});
+Object.assign(translations,{'New AI connection in this file':'Neue KI-Verbindung in dieser Datei','Report text would be sent to this connection from now on. Until you confirm, the current AI settings stay active.':'Befundtext würde ab jetzt an diese Verbindung gesendet. Bis zur Bestätigung bleiben die aktuellen KI-Einstellungen aktiv.','Keep current connection':'Aktuelle Verbindung behalten','Use new connection':'Neue Verbindung übernehmen','Other endpoints':'Weitere Endpunkte','AI connection unchanged':'KI-Verbindung unverändert','Settings':'Einstellungen','General':'Allgemein','AI':'KI','Configuration file':'Konfigurationsdatei','Appearance':'Darstellung','Language':'Sprache','Macros':'Textbausteine','AI notes':'KI-Hinweise','Saved keys in this browser':'Im Browser gespeicherte Schlüssel','Save encrypted in this browser':'Verschlüsselt im Browser speichern','Forget':'Vergessen','Later':'Später','Enter your password to load your AI settings and API keys. Everything else works without unlocking.':'Passwort eingeben, um KI-Einstellungen und API-Schlüssel zu laden. Alles andere funktioniert auch ohne Entsperren.','Keep an encrypted copy in this browser':'Verschlüsselte Kopie in diesem Browser behalten','No keys are saved in this browser. Keys you enter stay in memory until the page is closed.':'Keine Schlüssel in diesem Browser gespeichert. Eingegebene Schlüssel bleiben bis zum Schließen der Seite im Arbeitsspeicher.','Encrypted copy saved in this browser · unlocked. Changes are saved automatically.':'Verschlüsselte Kopie in diesem Browser gespeichert · entsperrt. Änderungen werden automatisch gespeichert.','Encrypted copy saved in this browser · locked.':'Verschlüsselte Kopie in diesem Browser gespeichert · gesperrt.','Remove the encrypted copy from this browser? Your configuration file is not affected.':'Verschlüsselte Kopie aus diesem Browser entfernen? Die Konfigurationsdatei bleibt unverändert.','Configuration unlocked':'Konfiguration entsperrt','Encrypted copy removed':'Verschlüsselte Kopie entfernt','Encrypted copy saved in this browser':'Verschlüsselte Kopie in diesem Browser gespeichert'});
 const aiKey='befundungstool-ai-v1';
 let aiSettings=null;
 try{const saved=JSON.parse(localStorage.getItem(aiKey));if(saved&&BefundSettings.validAi(saved)&&!BefundSettings.hasKeys(saved))aiSettings=saved}catch(e){}
 function storeAi(){try{if(!aiSettings)return;const stored=JSON.parse(JSON.stringify(aiSettings));for(const profile of Object.values(stored.profiles))delete profile.apiKey;localStorage.setItem(aiKey,JSON.stringify(stored))}catch(e){}}
 // A plain configuration file has no keys: keep in-memory keys whose endpoint origin is unchanged.
+// Imported AI connections become active only after explicit confirmation: a configuration file must
+// never silently redirect future report text to a server the user did not choose (cf. RepDict model paths).
+function providerName(p){return document.querySelector('#aiProvider option[value="'+p+'"]')?.textContent||p}
+function confirmAiImport(change){return new Promise(resolve=>{
+ const dialog=$('aiImportDialog'),list=$('aiImportList');list.replaceChildren();
+ const row=(term,value)=>{const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=translate(term);dd.textContent=value;list.append(dt,dd)};
+ row('Provider',change.from===change.to?providerName(change.to):providerName(change.from)+' → '+providerName(change.to));
+ if(change.endpoint)row('Endpoint',change.endpoint);
+ if(change.model)row('Model ID',change.model);
+ const others=change.endpoints.filter(e=>e.provider!==change.to);
+ if(others.length)row('Other endpoints',others.map(e=>providerName(e.provider)+': '+(e.to||'—')).join('\n'));
+ const done=value=>{dialog.oncancel=null;dialog.close();resolve(value)};
+ $('aiImportApply').onclick=()=>done(true);$('aiImportKeep').onclick=()=>done(false);dialog.oncancel=e=>{e.preventDefault();done(false)};
+ dialog.showModal();$('aiImportKeep').focus();
+})}
 function keepKeys(next,current){if(!next||!current)return next;const origin=url=>{try{return new URL(url).origin}catch(e){return null}};for(const [provider,profile]of Object.entries(next.profiles)){const old=current.profiles?.[provider];if(!profile.apiKey&&old?.apiKey&&origin(old.endpoint)===origin(profile.endpoint))profile.apiKey=old.apiKey}return next}
 const appVersion=()=>document.querySelector('meta[name="application-version"]').content;
 function configurationState(){return {macros,templates:customTemplates,chestFavorites:personalFavorites,builderFavorites,settings:configurationSettings(),...(aiSettings?{ai:aiSettings}:{})}}
@@ -231,6 +246,8 @@ $('macroFile').onchange=async()=>{
   // Everything is validated and merged before any state changes.
   const incoming=BefundSettings.parse(data,uniqueId);
   const next=BefundSettings.merge(configurationState(),incoming,uniqueId);
+  let aiKept=false;
+  if(next.ai){const change=BefundSettings.connectionChanges(aiSettings,next.ai,AiProviders.DEFAULT_ENDPOINTS);if(change&&!(await confirmAiImport(change))){delete next.ai;aiKept=true}}
   const importedBuilderFavorites=next.builderFavorites||builderFavorites;
   const favorites=incoming.kind==='settings'?next.chestFavorites.map(f=>({...f,snapshot:ChestPersistence.snapshot({...ChestState.empty(),...f.snapshot})})):personalFavorites;
   macros=next.macros;
@@ -251,7 +268,8 @@ $('macroFile').onchange=async()=>{
    for(const [key,value]of [[macroKey,macros],[templateKey,customTemplates],[ChestPersistence.key,personalFavorites],[BuilderPersistence.key,builderFavorites],[preferencesKey,configurationSettings()]])localStorage.setItem(key,JSON.stringify(value));
    localStorage.setItem('befundungstool-word-macro-intro-v1','1');
   }catch(e){saved=false}
-  notify(saved?(incoming.kind==='settings'?'Configuration loaded':incoming.kind==='report-studio'?'Report Studio settings imported':'Macros loaded'):'Configuration available for this session only');
+  const loaded=saved?(incoming.kind==='settings'?'Configuration loaded':incoming.kind==='report-studio'?'Report Studio settings imported':'Macros loaded'):'Configuration available for this session only';
+  notify(aiKept?translate(loaded)+' · '+translate('AI connection unchanged'):loaded);
  }catch(e){notify(knownLoadErrors.includes(e.message)?e.message:'Invalid configuration file')}
  finally{$('macroFile').value='';settingsBusy=false}
 };

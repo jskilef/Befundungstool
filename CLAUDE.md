@@ -107,6 +107,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 - Async ownership: every asynchronous workflow (model loads, model lists, vault writes) carries a generation/ticket and re-checks it after each `await`; obsolete work is dropped and its resources disposed once. Never let a late completion overwrite newer state.
 - Every provider's answer is checked against hard limits in `Contract.parse` (`HARD`); the JSON-schema `LIMITS` only steer grammar-constrained backends.
 - Render model text as text (no HTML injection). Keep diagnostics bounded; never surface raw upstream errors that might contain report text or keys.
+- Imported AI connections never activate silently: if a configuration file (own format or Report Studio) would change the provider or any API endpoint (`BefundSettings.connectionChanges`), the editor shows provider, endpoint and model and waits for "Neue Verbindung übernehmen"; "Behalten"/Escape keeps the current AI settings while the rest of the file applies.
 - Changing an endpoint's origin clears its key. Hidden local-mode fields never leak into requests.
 - Browser-model lifecycle: cancel/unload/clear terminates workers and revokes Blob URLs; local model files never fall back to online downloads.
 
