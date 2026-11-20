@@ -139,7 +139,7 @@ function response(status, data, headers = {}) {
   assert.equal(JSON.parse(seen.init.body).url, P.DEFAULT_ENDPOINTS.openai);
 
   // Response text extraction.
-  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{' } }] }, 'openai'), e => e.code === 'length');
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{' } }] }, 'openai'), e => e.code === 'context' && e.hint === P.TOO_LONG);
   assert.throws(() => P.responseText({ choices: [{ message: { content: ' ' } }] }, 'compatible'), /no text/);
   assert.equal(P.responseText({ candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'hidden' }, { text: '{"a":1}' }] } }] }, 'gemini'), '{"a":1}');
   assert.throws(() => P.responseText({ candidates: [] }, 'gemini'), /no candidate/);

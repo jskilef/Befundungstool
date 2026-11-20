@@ -31,17 +31,32 @@
   const KNOWN_CODES = ['tier_not_allowed', 'rate_limit_exceeded', 'quota_exceeded', 'insufficient_quota', 'model_not_allowed', 'invalid_api_key', 'permission_denied', '1300'];
   const MAX_RETRY_AFTER_MS = 30000;
 
-  const LENGTH_HINT = "The answer reached the model's length limit and was cut off. Try a shorter report or Review instead of Revise. With LM Studio, increase the model's context length.";
+  /* A report that does not fit the model (prompt over the context, or an answer cut off at the
+     output limit) always gets this message. A cut-off answer is discarded, never shown or applied.
+     tokens: { used, limit } when known. */
+  const TOO_LONG = "The report is too long for this model's context. Shorten the report, use Review instead of Revise, or choose a model with a larger context.";
+  const TOO_LONG_LMSTUDIO = "The report is too long for this model's context. Shorten the report, use Review instead of Revise, or increase the model's context length in LM Studio.";
+  const tooLongHint = provider => (provider === 'lmstudio' ? TOO_LONG_LMSTUDIO : TOO_LONG);
 
   class ProviderError extends Error {
-    constructor(hint, { status = null, code = null, partial = null } = {}) {
+    constructor(hint, { status = null, code = null, tokens = null } = {}) {
       super(hint);
       this.name = 'ProviderError';
       this.hint = hint;
       this.status = status;
       this.code = code;
-      this.partial = typeof partial === 'string' && partial ? partial : null;
+      this.tokens = tokens;
     }
+  }
+
+  // Context overflow as reported by OpenAI (code), Gemini, LM Studio/llama.cpp and other servers.
+  // Only used to classify the error; the upstream text itself is never shown.
+  const CONTEXT_PATTERN = /context[ _-]?(length|window|size|overflow)|n_ctx|maximum context|too many tokens|input token count|prompt is too long|exceeds? the (maximum|max)|tokens to keep|longer than the model/i;
+  function contextExceeded(data) {
+    const code = String(data?.code ?? data?.error?.code ?? '');
+    if (code === 'context_length_exceeded') return true;
+    const message = data?.error?.message ?? data?.message ?? data?.error ?? '';
+    return typeof message === 'string' && CONTEXT_PATTERN.test(message.slice(0, 2000));
   }
 
   function defaultConnection(provider) {
@@ -124,7 +139,7 @@
 
   /* Sends one request with at most two retries for HTTP 500/503/504.
      With `viaLocal`, the request goes through the loopback launcher's /api proxy. */
-  async function sendRequest(request, { signal, onRetry, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '' } = {}) {
+  async function sendRequest(request, { signal, onRetry, fetchImpl = globalThis.fetch, viaLocal = false, localToken = '', provider = '' } = {}) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const response = await fetchImpl(viaLocal ? '/api' : request.url, {
         method: 'POST', redirect: 'error', signal,
@@ -143,6 +158,7 @@
         await retryWait(wait, signal);
         continue;
       }
+      if ([400, 413, 422, 500].includes(response.status) && contextExceeded(data)) throw new ProviderError(tooLongHint(provider), { status: response.status, code: 'context' });
       const candidate = String(data?.code ?? data?.error?.code ?? '');
       throw new ProviderError(HINTS[response.status] || 'Provider request failed.', {
         status: response.status, code: KNOWN_CODES.includes(candidate) ? candidate : null
@@ -154,14 +170,14 @@
     if (provider === 'gemini') {
       const candidate = data?.candidates?.[0];
       if (!candidate) throw new ProviderError('Gemini returned no candidate. The response may be blocked.');
-      if (candidate.finishReason === 'MAX_TOKENS') throw new ProviderError(LENGTH_HINT, { code: 'length', partial: candidate.content?.parts?.map(p => p.text || '').join('') });
+      if (candidate.finishReason === 'MAX_TOKENS') throw new ProviderError(TOO_LONG, { code: 'context' });
       if (candidate.finishReason && candidate.finishReason !== 'STOP') throw new ProviderError('The model did not finish normally.', { code: String(candidate.finishReason).slice(0, 40) });
       const text = candidate.content?.parts?.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
       if (!text) throw new ProviderError('The API returned no text. Check model compatibility.');
       return text;
     }
     const choice = data?.choices?.[0];
-    if (choice?.finish_reason === 'length') throw new ProviderError(LENGTH_HINT, { code: 'length', partial: choice.message?.content });
+    if (choice?.finish_reason === 'length') throw new ProviderError(tooLongHint(provider), { code: 'context' });
     if (choice?.finish_reason && choice.finish_reason !== 'stop') throw new ProviderError('The model did not finish normally.', { code: String(choice.finish_reason).slice(0, 40) });
     if (typeof choice?.message?.content !== 'string' || !choice.message.content.trim()) throw new ProviderError('The API returned no text. Check model compatibility.');
     return choice.message.content;
@@ -189,7 +205,7 @@
   }
 
   return {
-    API_PROVIDERS, DEFAULT_ENDPOINTS, HINTS, KNOWN_CODES, ProviderError,
+    API_PROVIDERS, DEFAULT_ENDPOINTS, HINTS, KNOWN_CODES, ProviderError, TOO_LONG, TOO_LONG_LMSTUDIO, contextExceeded,
     defaultConnection, validateURL, chatEndpoint, buildRequest, listModels, sendRequest, responseText, connectionError, retryWait
   };
 });

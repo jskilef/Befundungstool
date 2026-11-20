@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes, timingSafeEqual } = require('node:crypto');
 
+const CONTEXT_PATTERN = /context[ _-]?(length|window|size|overflow)|n_ctx|maximum context|too many tokens|input token count|prompt is too long|exceeds? the (maximum|max)|tokens to keep|longer than the model/i;
 const KNOWN_CODES = ['tier_not_allowed', 'rate_limit_exceeded', 'quota_exceeded', 'insufficient_quota', 'model_not_allowed', 'invalid_api_key', 'permission_denied', '1300'];
 const MAX_BODY_BYTES = 2e6;
 const UPSTREAM_TIMEOUT_MS = 180000;
@@ -89,7 +90,11 @@ function createServer({ upstreamFetch = fetch, root = defaultRoot() } = {}) {
           if (retryAfter && /^\d{1,6}$/.test(retryAfter)) res.setHeader('Retry-After', retryAfter);
           const failure = await upstream.json().catch(() => null);
           const candidate = failure?.code ?? failure?.error?.code;
-          return reply(upstream.status, { error: 'Provider rejected request', ...(KNOWN_CODES.includes(candidate) ? { code: candidate } : {}) });
+          // Context overflow is passed on as a code only (same classification as src/ai/providers.js);
+          // the upstream message is never forwarded.
+          const message = failure?.error?.message ?? failure?.message ?? failure?.error;
+          const overflow = candidate === 'context_length_exceeded' || (typeof message === 'string' && CONTEXT_PATTERN.test(message.slice(0, 2000)));
+          return reply(upstream.status, { error: 'Provider rejected request', ...(overflow ? { code: 'context_length_exceeded' } : KNOWN_CODES.includes(candidate) ? { code: candidate } : {}) });
         }
         reply(200, await upstream.json());
       } catch {

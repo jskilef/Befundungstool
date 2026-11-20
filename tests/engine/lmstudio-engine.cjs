@@ -47,7 +47,8 @@ const { createServer } = require('../../server/local-server.cjs');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-lm-'));
   fs.writeFileSync(path.join(root, 'befundungstool.html'), '<script></script>');
   const upstream = [];
-  const server = createServer({ root, upstreamFetch: async (url, init) => { upstream.push({ url, init }); return new Response(JSON.stringify(listing), { status: 200 }); } });
+  let upstreamReply = () => new Response(JSON.stringify(listing), { status: 200 });
+  const server = createServer({ root, upstreamFetch: async (url, init) => { upstream.push({ url, init }); return upstreamReply(); } });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -57,6 +58,11 @@ const { createServer } = require('../../server/local-server.cjs');
     assert.equal(upstream[0].init.method, 'GET');
     assert.equal(upstream[0].init.body, undefined);
     assert.equal((await api({ url: 'http://127.0.0.1:1234/v1/chat/completions', method: 'GET', headers: {} })).status, 400, 'GET only for model lists');
+    // Context overflow passes through the launcher as a code only, never as upstream text.
+    upstreamReply = () => new Response(JSON.stringify({ error: 'Trying to keep the first 9000 tokens when context the overflows. However, the model is loaded with context length of only 4096 tokens (synthetic)' }), { status: 400 });
+    const overflow = await api({ url: 'http://127.0.0.1:1234/v1/chat/completions', method: 'POST', headers: {}, body: { model: 'm', messages: [] } });
+    assert.equal(overflow.status, 400);
+    assert.deepEqual(await overflow.json(), { error: 'Provider rejected request', code: 'context_length_exceeded' });
   } finally {
     server.close();
   }
@@ -95,9 +101,28 @@ const { createServer } = require('../../server/local-server.cjs');
   ]) assert.throws(() => Contract.parse(JSON.stringify(bad), 'revise', ['findings']), /Unexpected response format/);
   assert.throws(() => Contract.parse(' '.repeat(200001), 'review', []), /Unexpected response format/);
 
+  // Too long for the model: one specific message; a cut-off answer is discarded (no partial output).
   assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{"sections":[' } }] }, 'compatible'),
-    e => e.code === 'length' && e.partial === '{"sections":[' && /length limit/.test(e.hint));
-  assert.throws(() => P.responseText({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'abc' }] } }] }, 'gemini'), e => e.code === 'length' && e.partial === 'abc');
-  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'content_filter', message: { content: 'x' } }] }, 'openai'), e => e.code === 'content_filter' && e.partial === null);
-  console.log('Begrenzte Antworten: Schema-Grenzen, Längenabbruch mit Teilantwort bestanden.');
+    e => e.code === 'context' && e.hint === P.TOO_LONG && e.partial === undefined && !JSON.stringify(e).includes('sections'));
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{' } }] }, 'lmstudio'), e => e.hint === P.TOO_LONG_LMSTUDIO);
+  assert.throws(() => P.responseText({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'abc' }] } }] }, 'gemini'), e => e.code === 'context' && e.hint === P.TOO_LONG);
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'content_filter', message: { content: 'x' } }] }, 'openai'), e => e.code === 'content_filter');
+
+  // Context overflow reported by the server (OpenAI code, llama.cpp/LM Studio and Gemini wording): same message.
+  const failing = (status, body) => async () => ({ ok: false, status, headers: { get: () => null }, json: async () => body });
+  const req = P.buildRequest('lmstudio', P.DEFAULT_ENDPOINTS.lmstudio, '', 'm', 's', 'i');
+  for (const [provider, status, body] of [
+    ['openai', 400, { error: { code: 'context_length_exceeded', message: 'synthetic' } }],
+    ['lmstudio', 400, { error: 'Trying to keep the first 9000 tokens when context the overflows. However, the model is loaded with context length of only 4096 tokens' }],
+    ['compatible', 400, { error: { message: 'the request exceeds the available context size, try increasing it' } }],
+    ['gemini', 400, { error: { message: 'The input token count (1200000) exceeds the maximum number of tokens allowed (1048576).' } }],
+    ['compatible', 400, { error: { code: 'context_length_exceeded' } }]
+  ]) await assert.rejects(P.sendRequest(req, { provider, fetchImpl: failing(status, body) }), e => e.code === 'context' && e.hint === (provider === 'lmstudio' ? P.TOO_LONG_LMSTUDIO : P.TOO_LONG) && e.status === status, provider);
+  await assert.rejects(P.sendRequest(req, { provider: 'openai', fetchImpl: failing(400, { error: { message: 'Invalid model synthetic' } }) }), e => e.code === null && e.hint === P.HINTS[400], 'other 400 errors unchanged');
+
+  // Estimates for the pre-check: Review needs the bounded notes; Revise also every section once more.
+  assert.equal(Contract.estimateTokens('x'.repeat(300)), 100);
+  assert.equal(Contract.outputTokens('review', sections), 800);
+  assert.equal(Contract.outputTokens('revise', sections), 800 + Math.ceil(Contract.estimateTokens('x'.repeat(100) + '\n' + 'y') * 1.1) + 80);
+  console.log('Begrenzte Antworten: Schema-Grenzen, zu lange Befunde (Längenabbruch, Kontextüberlauf, Schätzung) ohne Teilantwort bestanden.');
 })().catch(error => { console.error(error); process.exit(1); });

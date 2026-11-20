@@ -107,6 +107,17 @@
   }
 
   // Strict validation: anything off-contract is rejected so it can never replace an accepted result.
+  /* Token estimates for checking, before sending, whether a report fits a model. About 3 characters
+     per token is deliberately conservative for German medical text (real tokenizers average 3.5–4).
+     outputTokens: what a complete answer needs: the bounded notes, plus for Revise every sent section
+     once more (JSON escaping included). If it does not fit, the request is not sent at all. */
+  const estimateTokens = text => Math.ceil(String(text).length / 3);
+  function outputTokens(mode, sections) {
+    const notes = 800;
+    if (mode === 'review') return notes;
+    return notes + Math.ceil(estimateTokens(sections.map(s => s.text).join('\n')) * 1.1) + 40 * sections.length;
+  }
+
   /* Hard limits for every provider (the schema LIMITS above only steer grammar-constrained backends).
      Generous enough for normal cloud answers; a runaway answer is rejected as a whole and never
      replaces an accepted result. */
@@ -145,5 +156,5 @@
     return true;
   }
 
-  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, HARD, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
+  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, HARD, estimateTokens, outputTokens, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
 });

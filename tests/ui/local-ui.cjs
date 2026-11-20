@@ -77,6 +77,13 @@ function makeFolder(name, files) {
     assert.equal(await page.locator('#aiModelProgress').textContent(), 'Browser-Modell bereit.');
     assert(await page.locator('#aiRevise').isEnabled());
 
+    // A revision that cannot fit the CPU worker's 1,024 new tokens is refused before the worker runs.
+    await page.locator('#findings').fill('Synthetischer Befund. '.repeat(46));
+    await page.locator('#aiRevise').click();
+    await waitStatus('Der Befund ist zu lang für den Kontext dieses Modells.');
+    assert.match(await page.locator('#aiStatus').textContent(), /\(etwa 1\.\d{3} \/ 1\.024 Token\)$/);
+    assert(await page.locator('#aiRawBox').isHidden());
+
     // Unstructured output is rejected and shown as raw text.
     await page.locator('#findings').fill('FAKE_PROSE');
     await page.locator('#aiReview').click();

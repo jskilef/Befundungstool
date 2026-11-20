@@ -80,6 +80,17 @@ export class Wllama {
     assert.equal(await page.locator('.ai-section[data-section=findings] ins').textContent(), 'groß');
     assert.equal(await page.locator('#aiGgufProgress').textContent(), 'Browser-Modell bereit. (CPU)');
 
+    // A report that cannot fit the 8,192-token context: one specific message with token counts,
+    // nothing generated, no raw or partial output.
+    const chatsBefore = await page.evaluate(() => window.__wllama.chats.length);
+    await page.locator('#findings').fill('Synthetischer Befund ohne Bedeutung. '.repeat(900));
+    await page.locator('#aiRevise').click();
+    await waitStatus('Der Befund ist zu lang für den Kontext dieses Modells.');
+    assert.match(await page.locator('#aiStatus').textContent(), /\(etwa [\d.]+ \/ 8\.192 Token\)$/);
+    assert.equal(await page.evaluate(() => window.__wllama.chats.length), chatsBefore, 'nothing generated');
+    assert(await page.locator('#aiRawBox').isHidden(), 'no raw output');
+    await page.locator('#findings').fill('Herz normal gross.');
+
     // Second request reuses the loaded model; unloading works; the file must be chosen again after reload.
     await page.locator('#aiReview').click();
     await waitStatus('Prüfung abgeschlossen');
