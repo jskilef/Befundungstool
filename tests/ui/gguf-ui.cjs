@@ -20,7 +20,8 @@ export class Wllama {
     window.__wllama.chats.push(options);
     const payload = JSON.parse(options.messages[1].content);
     const findings = payload.sections.find(s => s.id === 'findings');
-    return { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ sections: [{ id: 'findings', text: findings.text.replace('gross', 'groß') }], issues: [], changes: [] }) } }] };
+    const revise = !!options.response_format?.json_schema?.schema?.properties?.sections;
+    return { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ ...(revise ? { sections: [{ id: 'findings', text: findings.text.replace('gross', 'groß') }] } : {}), issues: [], changes: [] }) } }] };
   }
   async exit() { window.__wllama.exited = true; }
 }`;

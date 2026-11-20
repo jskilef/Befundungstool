@@ -36,6 +36,8 @@
     'Previous result: the latest request did not complete.': 'Früheres Ergebnis: Die letzte Anfrage wurde nicht abgeschlossen.',
     'This result is outdated or the latest request failed. Apply it anyway?': 'Dieses Ergebnis ist veraltet oder die letzte Anfrage ist fehlgeschlagen. Trotzdem übernehmen?',
     'The AI changed frozen text in this section. Apply anyway?': 'Die KI hat fixierten Text in diesem Abschnitt verändert. Trotzdem übernehmen?',
+    'The AI removed, reordered or merged headings in this section. Check it before applying.': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Vor der Übernahme prüfen.',
+    'The AI removed, reordered or merged headings in this section. Apply anyway?': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Trotzdem übernehmen?',
     'Generated': 'Erstellt', 'Applied to the report.': 'In den Befund übernommen.',
     'Enter a report first.': 'Zuerst einen Befund eingeben.', 'Choose an AI provider.': 'Einen KI-Anbieter wählen.',
     'Enter the model ID.': 'Modell-ID eingeben.', 'Enter your API key.': 'API-Schlüssel eingeben.',
@@ -624,6 +626,7 @@
         draftField.hidden = true;
         const state = node('span', { class: 'ai-section-state' });
         const frozenWarning = node('p', { class: 'ai-warning', text: 'The AI changed frozen text in this section. Check it before applying.', hidden: s.protectedOk });
+        const headingWarning = node('p', { class: 'ai-warning ai-heading-warning', text: 'The AI removed, reordered or merged headings in this section. Check it before applying.', hidden: s.headingsOk });
         const buttons = node('div', { class: 'ai-section-actions' }, [
           node('button', { type: 'button', class: 'primary', 'data-apply': 'replace', text: 'Apply' }),
           node('button', { type: 'button', 'data-apply': 'append', text: 'Append' }),
@@ -636,7 +639,7 @@
           if (button?.dataset.apply) applySection(s, button.dataset.apply, draft.value);
         };
         const head = node('div', { class: 'ai-section-head' }, [node('span', { class: 'ai-label', text: 'AI suggestion' }), state]);
-        const card = node('section', { class: 'ai-section', 'data-section': s.id, 'aria-label': s.label }, [head, frozenWarning, diff, draftField, buttons]);
+        const card = node('section', { class: 'ai-section', 'data-section': s.id, 'aria-label': s.label }, [head, frozenWarning, headingWarning, diff, draftField, buttons]);
         renderDiff(diff, s.original, s.proposed);
         s.el = { card, state, buttons, draft };
         bridge.sectionHost(s.id).append(card);
@@ -650,6 +653,7 @@
       if (mode === 'discard') { section.discarded = true; removeCard(section); return; }
       if ((sectionStale(section) || revisionFailed) && !bridge.confirm(t('This result is outdated or the latest request failed. Apply it anyway?'))) return;
       if (!Contract.protectedIntact(section.protected, text) && !bridge.confirm(t('The AI changed frozen text in this section. Apply anyway?'))) return;
+      if (!Contract.headingsIntact(section.original, text) && !bridge.confirm(t('The AI removed, reordered or merged headings in this section. Apply anyway?'))) return;
       const result = bridge.apply(section.id, text, mode);
       if (!result.ok) { bridge.notify(result.message); return; }
       section.applied = mode;
@@ -744,7 +748,7 @@
             snapshot: before, expected, time,
             sections: sections.filter(s => proposals.has(s.id)).map(s => {
               const proposed = proposals.get(s.id);
-              return { id: s.id, label: s.label, original: s.text, protected: s.protected, proposed, protectedOk: Contract.protectedIntact(s.protected, proposed), applied: false, discarded: false, el: null };
+              return { id: s.id, label: s.label, original: s.text, protected: s.protected, proposed, protectedOk: Contract.protectedIntact(s.protected, proposed), headingsOk: Contract.headingsIntact(s.text, proposed), applied: false, discarded: false, el: null };
             })
           };
           revisionFailed = false;

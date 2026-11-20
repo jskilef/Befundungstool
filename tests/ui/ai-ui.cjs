@@ -117,7 +117,7 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     assert.equal(await findingsCard.locator('[data-apply=replace]').textContent(), 'Übernehmen');
     assert.equal(await findingsCard.locator('del').textContent(), 'gross');
     assert.equal(await findingsCard.locator('ins').textContent(), 'groß');
-    assert(await findingsCard.locator('.ai-warning[hidden]').count() === 1, 'frozen text intact: no warning');
+    assert(await findingsCard.locator('.ai-warning[hidden]').count() === 2, 'frozen text and headings intact: no warning');
     assert.equal(await page.inputValue('#findings'), 'Kein Pleuraerguss rechts. Herz normal gross.', 'nothing applied automatically');
 
     await findingsCard.locator('[data-apply=replace]').click();
@@ -209,6 +209,31 @@ const completion = content => ({ choices: [{ finish_reason: 'stop', message: { c
     await page.locator('#aiCancel').click();
     await waitStatus('Abgebrochen');
     assert(await page.locator('#aiReview').isEnabled());
+
+    // RepDict's heading guard, per section: a free-text field whose headings were merged gets a
+    // warning, and applying asks first. A Review answer that rewrites is rejected.
+    if (await page.locator('#aiClear').isVisible()) await page.locator('#aiClear').click();
+    await page.selectOption('#template', 'freestyle');
+    const freeText = 'Befund:\nHerz normal gross.\n\nBeurteilung:\nUnauffaellig.';
+    await page.locator('#freestyle').fill(freeText);
+    reply = () => ({ status: 200, body: completion({ sections: [{ id: 'freestyle', text: 'Befund: Herz normal groß. Unauffällig.' }], issues: [], changes: [] }) });
+    await page.locator('#aiRevise').click();
+    await waitStatus('Überarbeitung abgeschlossen');
+    const freeCard = page.locator('.ai-section[data-section=freestyle]');
+    assert.equal(await freeCard.locator('.ai-heading-warning').textContent(), 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Vor der Übernahme prüfen.');
+    assert(await freeCard.locator('.ai-heading-warning').isVisible());
+    page.once('dialog', d => d.dismiss());
+    await freeCard.locator('[data-apply=replace]').click();
+    assert.equal(await page.inputValue('#freestyle'), freeText, 'declined: unchanged');
+    let question = '';
+    page.once('dialog', d => { question = d.message(); d.accept(); });
+    await freeCard.locator('[data-apply=replace]').click();
+    assert.match(question, /Überschriften/);
+    assert.equal(await page.inputValue('#freestyle'), 'Befund: Herz normal groß. Unauffällig.');
+    reply = () => ({ status: 200, body: completion({ sections: [{ id: 'freestyle', text: 'Umgeschrieben.' }], issues: [], changes: [] }) });
+    await page.locator('#aiReview').click();
+    await waitStatus('Das Modell hat keine gültige strukturierte Antwort');
+    await page.selectOption('#template', 'structured');
 
     // Changing the endpoint origin clears the key.
     const ui = require('../helpers/ui.cjs');

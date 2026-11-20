@@ -22,7 +22,9 @@ export async function pipeline(task, model, options) {
     if (findings.text.includes('FAKE_HANG')) await new Promise(() => {});
     if (findings.text.includes('FAKE_PROSE')) return [{generated_text: 'The report looks fine.'}];
     const info = model + '|' + options.dtype + '|' + options.device + '|merged:' + (lastMessages.length === 1);
-    return [{generated_text: JSON.stringify({sections: [{id: findings.id, text: findings.text.replace('gross', 'groß')}], issues: [{category: 'runtime', detail: info}], changes: []})}];
+    // Like a real model: rewritten sections only for Revise (a Review answer with sections is rejected).
+    const review = lastMessages.map(m => m.content).join(' ').includes('Nur prüfen');
+    return [{generated_text: JSON.stringify({...(review ? {} : {sections: [{id: findings.id, text: findings.text.replace('gross', 'groß')}]}), issues: [{category: 'runtime', detail: info}], changes: []})}];
   };
   generator.tokenizer = () => ({input_ids: {dims: [1, 100]}});
   generator.tokenizer.apply_chat_template = messages => { lastMessages = messages; return 'rendered'; };
