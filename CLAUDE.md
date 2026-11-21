@@ -17,6 +17,12 @@ npm test                   # build + all tests (tests/engine, then tests/ui)
 node scripts/test.cjs ui undo   # one group, filtered by file name
 npm start                  # build + launcher on http://127.0.0.1:8788
 npm run release            # dist/release/ (ZIP, HTML, SHA256SUMS)
+npm run release:desktop    # same + freshly built desktop packages for this OS in SHA256SUMS
+npm run desktop:setup      # once: Electron binary (npm install --ignore-scripts skips it)
+npm run desktop            # build + Electron window (desktop/main.cjs)
+npm run desktop:build      # dist/desktop/: packages for this OS (Windows portable exe, macOS dmg arm64+x64, Linux deb + AppImage); unsigned
+npm run test:desktop       # tests/desktop only; npm test skips the group without the Electron binary
+npm run desktop:start-check  # N real starts without Playwright must each reach ready (CI guard for startup hangs; Playwright attach retries in tests/helpers/desktop.cjs)
 ```
 
 Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Report Studio, matching `@playwright/test` 1.63.0); `scripts/test.cjs` sets `PLAYWRIGHT_BROWSERS_PATH` automatically. `BT_CHROMIUM_PATH` overrides the Chromium executable.
@@ -40,10 +46,12 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `public/` | Manifest, icons, index redirect; copied into `dist/` by the build |
 | `assets/fonts/` | Roboto WOFF2 subsets (unmodified from Google Fonts); inlined into the HTML by the build |
 | `server/local-server.cjs` | Optional loopback launcher and `/api` proxy (session token, origin/host checks) |
+| `desktop/` | Optional desktop app for Windows, macOS and Linux (Electron): `main.cjs` (lifecycle, in-process launcher on 127.0.0.1:8790, window hardening, menu), `policy.cjs` (origin/link/permission rules, Electron-free for engine tests), `gpu.cjs` (WebGPU switches, GPU-Status diagnostics). Packaging config: `build` in `package.json` |
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
-| `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/` |
+| `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/`; `--desktop` adds freshly built desktop packages for the current OS (a plain run removes same-version packages left from an earlier `--desktop` run) |
+| `.github/workflows/desktop.yml` | Desktop checks + packages on Windows, macOS and Linux runners; collects one release folder with one SHA256SUMS.txt (artifact only, nothing published) |
 | `licenses/`, `THIRD_PARTY_NOTICES.md` | Upstream license texts for optional runtimes/models; re-review when versions change |
-| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/helpers/` shared fixtures (`ui.cjs` opens the settings sheet, `config-file.cjs` saves/decrypts the configuration) |
+| `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/desktop/` Electron checks via Playwright `_electron` (`tests/helpers/desktop.cjs` launches with a free port and a temporary data folder); `tests/helpers/` shared fixtures (`ui.cjs` opens the settings sheet, `config-file.cjs` saves/decrypts the configuration) |
 | `docs/` | Module docs and the radnote reference docs (AUDIT, TERMINOLOGY, CLINICAL_NOTICE, FLUENCY_DIRECT) |
 
 `src/builders`, `src/chest`, `src/mra`, `src/settings`, `src/dictation` stay siblings: modules `require('../builders/...')` each other.
@@ -54,7 +62,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 - **No runtime dependencies in the core editor.** It must make zero network requests unless the user selects an AI provider. AI runtimes (WebLLM, Transformers.js) are loaded lazily from pinned CDN URLs only in browser-model mode.
 - Modules publish a browser global and `module.exports` when `module` exists, so engine code is testable in Node without a bundler. No ES-module imports between source files.
 - New build slots go in `scripts/build.cjs`; the build fails on missing or unfilled slots.
-- Keep dependencies minimal: `@playwright/test` (pinned) is the only dev dependency. Ask before adding any.
+- Keep dependencies minimal: dev dependencies are `@playwright/test`, `electron` and `electron-builder` (all pinned exactly; Electron approved 2026-11-21). Ask before adding any.
 
 ## Code style
 
@@ -72,6 +80,8 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 - **Optional tools (user decision 2026-11-11):** builders, dictation, offline dictation (`speech`), study/patient/date (`meta`), AI review and the macro sidebar can each be switched off (`settings.features`, `html[data-off]`). Default on. Hiding never deletes data. With `meta` off, copy/export omit the header. New optional tools should join this list.
 - **Sidebar layout (user decision 2026-11-14):** `settings.sidebar` = side (right/left), width (narrow/normal/wide), sections (macros, shortcuts, notes). One section left → no tab bar; none → no sidebar.
 - **Copy/export layout (user request 2026-11-21):** `settings.copyFormat` = { headings: `upper` (default, previous behaviour) | `asNamed` (field label exactly as named), blankLines: 0–3 (default 1) } applies to "Befund kopieren" and the .txt export, also after the study header. The title line stays as before. Empty (or whitespace-only) sections are always left out, heading included (user decision 2026-11-21).
+- **Desktop app (user request 2026-11-21):** Electron wrapper around the launcher; fixed port 127.0.0.1:8790 (origin = data: never fall back to another port; a busy port shows a DE/EN error and quits), single-instance lock per data folder. `server/local-server.cjs` runs in-process unchanged (`createServer({ root, upstreamFetch: net.fetch })` so provider calls use Chromium's proxy/certificate handling); `src/` needs no desktop-specific code. GPU switches `enable-unsafe-webgpu`, `ignore-gpu-blocklist`, `force_high_performance_gpu` unless `--safe-gpu`; *Hilfe → GPU-Status* / `--gpu-info`. Hardening: sandbox + context isolation, no preload, navigation/new windows blocked (https links → `shell.openExternal`), permissions only microphone (audio) and write-only clipboard (`clipboard-sanitized-write`, used by "Befund kopieren") for the app origin, DevTools only with `--devtools`, no Reload/Edit menu roles (unguarded reload; app undo owns Ctrl+Z), spellchecker off, `disable-background-networking`. Packaged builds flip fuses (no RunAsNode, NODE_OPTIONS, `--inspect`; app only from asar). Startup traffic is checked with Chromium's net-log: loopback only, except Windows proxy auto-discovery (`wpad`) when the system enables it. Unsigned; no auto-update. Platforms (user request 2026-11-21): Windows portable exe, macOS dmg (arm64 + x64, ad-hoc signed, not notarized, hardened runtime off, microphone usage text in Info.plist; Edit menu with Cut/Copy/Paste/Select All but no Undo; window close keeps the app in the Dock), Linux deb (sets up chrome-sandbox/AppArmor) and AppImage, x64; Linux adds `enable-features=Vulkan` for WebGPU. Each OS builds its own packages (CI workflow); electron-builder downloads the matching Electron build.
+- **Phones (user request 2026-11-21):** installable web app on the hosted site, no native wrapper (phone browsers have better WebGPU than app web views; no new dependencies). On touch-only devices (`(hover: none) and (pointer: coarse)`, `touchKeyboard()` in editor.js) Space also expands `.code` Tab macros (no Tab key) and macro chips say "Leertaste"; physical keyboards keep Tab-only. `apple-touch-icon` for the iOS home screen. `tests/ui/phone-ui.cjs` checks layout at phone widths, the beforeinput path Android keyboards use, and no network requests.
 - **Macros (user decision 2026-11-14):** new macros default to word expansion (code + Space).
 - **Local models via LM Studio:** provider `lmstudio` (loopback OpenAI-compatible server, no key, `response_format: json_schema` from `AiContract.responseSchema`). The launcher may forward GET only for `.../models`.
 - **GGUF in the browser (user request 2026-11-14):** provider `gguf` runs a user-chosen `.gguf` file with wllama (llama.cpp WASM, pinned `@wllama/wllama@3.8.1` from jsDelivr, WebGPU or CPU). `src/ai/gguf.js` splits files over the 2 GB browser limit into llama-gguf-split-compatible Blob shards (new header + slices, no copying). Tested for real with mistral3, gemma3 and qwen35 GGUFs; keep the shard layout byte-exact (tests/engine/gguf-engine.cjs). CPU speed needs cross-origin isolation (≈6× faster than single-threaded): the launcher sends COOP/COEP credentialless, the hosted site registers `public/coi-sw.js` (headers only, no caching).

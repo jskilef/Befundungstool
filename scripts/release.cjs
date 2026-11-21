@@ -1,13 +1,33 @@
 'use strict';
 // Builds dist/release/: befundungstool-v<VERSION>.zip (explicit allow-list), the standalone HTML,
-// and SHA256SUMS.txt. Node built-ins only. Usage: node scripts/release.cjs [outDir]
+// and SHA256SUMS.txt. Node built-ins only. Usage: node scripts/release.cjs [outDir] [--desktop]
+// --desktop also builds the desktop packages this operating system can produce (Windows portable exe,
+// macOS dmg, Linux deb/AppImage via electron-builder) and adds them with their checksums.
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { build } = require('./build.cjs');
 
 const root = path.join(__dirname, '..');
+// Desktop artifact names come from the electron-builder config: befundungstool-v<version>-<os>-<variant>.<ext>
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DESKTOP_ARTIFACT = version => new RegExp(`^befundungstool-v${escapeRegExp(version)}-(windows|macos|linux)-[A-Za-z0-9_.-]+\\.(exe|dmg|deb|AppImage)$`);
+const desktopArtifacts = (dir, version) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter(name => DESKTOP_ARTIFACT(version).test(name)).sort() : []);
+
+// Builds the packages from the app that release() has just built, so a stale package never ships.
+function buildDesktop(version) {
+  const builder = path.join(root, 'node_modules', 'electron-builder', 'cli.js');
+  if (!fs.existsSync(builder)) throw new Error('The desktop build needs electron-builder: run "npm install --ignore-scripts".');
+  const out = path.join(root, 'dist', 'desktop');
+  for (const name of desktopArtifacts(out, version)) fs.rmSync(path.join(out, name), { force: true });
+  const result = spawnSync(process.execPath, [builder, '--publish', 'never'], { cwd: root, stdio: 'inherit' });
+  if (result.status !== 0) throw new Error('electron-builder failed');
+  const built = desktopArtifacts(out, version);
+  if (!built.length) throw new Error('No desktop package found in dist/desktop after the build.');
+  return built.map(name => path.join(out, name));
+}
 
 // [path in archive, source path]. Adding a source file does not add it to the release.
 function releaseFiles() {
@@ -91,7 +111,8 @@ function unzip(buffer) {
   return out;
 }
 
-function release(outDir = path.join(root, 'dist', 'release')) {
+// options.desktop adds the desktop packages; options.buildDesktop replaces the electron-builder run (tests).
+function release(outDir = path.join(root, 'dist', 'release'), { desktop = false, buildDesktop: buildExe = buildDesktop } = {}) {
   const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   if (pkg.version !== version) throw new Error(`VERSION ${version} does not match package.json ${pkg.version}`);
@@ -115,12 +136,31 @@ function release(outDir = path.join(root, 'dist', 'release')) {
     fs.writeFileSync(path.join(outDir, name), data);
     sums.push(crypto.createHash('sha256').update(data).digest('hex') + '  ' + name);
   }
+  // Desktop packages from an earlier run of this version no longer match the new HTML or SHA256SUMS.txt,
+  // so they are removed rather than left looking like part of the release.
+  for (const name of desktopArtifacts(outDir, version)) fs.rmSync(path.join(outDir, name), { force: true });
+  if (desktop) {
+    for (const source of buildExe(version)) {
+      const name = path.basename(source);
+      if (!DESKTOP_ARTIFACT(version).test(name)) throw new Error('Unexpected desktop package name: ' + name);
+      fs.copyFileSync(source, path.join(outDir, name));
+      sums.push(crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, name))).digest('hex') + '  ' + name);
+      outputs[name] = null;
+    }
+  }
   fs.writeFileSync(path.join(outDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n');
   return { version, outDir, files: entries.map(([name]) => name), outputs: Object.keys(outputs) };
 }
 
 if (require.main === module) {
-  const result = release(process.argv[2] && path.resolve(process.argv[2]));
+  const args = process.argv.slice(2);
+  const unknown = args.filter(arg => arg.startsWith('-') && arg !== '--desktop');
+  if (unknown.length) {
+    console.error('Unknown option: ' + unknown.join(' ') + ' (use --desktop)');
+    process.exit(2);
+  }
+  const outArg = args.find(arg => !arg.startsWith('-'));
+  const result = release(outArg && path.resolve(outArg), { desktop: args.includes('--desktop') });
   console.log(`Release ${result.version}: ${result.files.length} files -> ${path.relative(root, result.outDir)} (${result.outputs.join(', ')}, SHA256SUMS.txt)`);
 }
 

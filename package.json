@@ -1,18 +1,130 @@
 {
   "name": "befundungstool",
+  "productName": "Befundungstool",
   "version": "0.1.0",
   "private": true,
   "description": "Standalone radiology report editor with structured builders and optional AI review",
   "license": "MIT",
+  "author": "Befundungstool contributors",
+  "main": "desktop/main.cjs",
   "scripts": {
     "build": "node scripts/build.cjs",
     "start": "node scripts/build.cjs && node server/local-server.cjs",
     "release": "node scripts/release.cjs",
+    "release:desktop": "node scripts/release.cjs --desktop",
     "test": "node scripts/test.cjs",
     "test:engine": "node scripts/test.cjs engine",
-    "test:ui": "node scripts/test.cjs ui"
+    "test:ui": "node scripts/test.cjs ui",
+    "desktop:setup": "node node_modules/electron/install.js",
+    "desktop": "node scripts/build.cjs && electron .",
+    "desktop:build": "node scripts/build.cjs && electron-builder --publish never",
+    "desktop:start-check": "node scripts/build.cjs && node scripts/desktop-start-check.cjs",
+    "test:desktop": "node scripts/test.cjs desktop"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "befundungstool",
+    "productName": "Befundungstool",
+    "copyright": "Copyright (c) Befundungstool contributors, MIT License",
+    "directories": {
+      "output": "dist/desktop",
+      "buildResources": "desktop/build-resources"
+    },
+    "files": [
+      "dist/befundungstool.html",
+      "dist/manifest.webmanifest",
+      "dist/icons/*.png",
+      "server/local-server.cjs",
+      "desktop/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+      "CLINICAL_NOTICE.md",
+      "licenses/**/*"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false,
+      "resetAdHocDarwinSignature": true
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "public/icons/icon-512.png"
+    },
+    "portable": {
+      "artifactName": "befundungstool-v${version}-windows-portable.${ext}"
+    },
+    "nsis": {
+      "artifactName": "befundungstool-v${version}-windows-setup.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icons/icon-512.png",
+      "category": "public.app-category.medical",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Offline-Diktat: Die Aufnahme bleibt im Arbeitsspeicher dieses Mac und wird nicht gespeichert oder hochgeladen. / Offline dictation: audio stays in memory on this Mac and is never stored or uploaded."
+      }
+    },
+    "dmg": {
+      "artifactName": "befundungstool-v${version}-macos-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icons/icon-512.png",
+      "category": "Office",
+      "executableName": "befundungstool",
+      "maintainer": "Befundungstool contributors",
+      "synopsis": "Radiology report editor with optional local AI",
+      "desktop": {
+        "entry": {
+          "Name": "Befundungstool",
+          "Comment": "Radiologischer Befundeditor",
+          "Categories": "Office;MedicalSoftware;"
+        }
+      }
+    },
+    "deb": {
+      "artifactName": "befundungstool-v${version}-linux-${arch}.${ext}"
+    },
+    "appImage": {
+      "artifactName": "befundungstool-v${version}-linux-${arch}.${ext}"
+    }
   }
 }
