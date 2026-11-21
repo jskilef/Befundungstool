@@ -16,8 +16,9 @@ Without an AI provider selected, the app makes no network requests.
 **Writing reports**
 - Templates: structured, "Befund und Beurteilung", freestyle, and custom templates with named, reorderable fields and default text.
 - Macros: `.code` + Tab inserts text; word expansion (`re` + Space → `rechts `); categories, favorites, search; `[[placeholders]]` with F2.
-- Frozen text survives new reports; undo/redo (Ctrl/Cmd+Z, 200 steps); copy per field, copy report, export .txt (Ctrl/Cmd+S), print/PDF.
+- Frozen text survives new reports; undo/redo (Ctrl/Cmd+Z, 200 steps); copy per field, copy report, export .txt (Ctrl/Cmd+S), print/PDF. Under gear → *Allgemein* → *Kopieren und Export*: section headings in capitals or as the fields are named, and 0–3 blank lines between sections. Empty sections are left out.
 - Optional draft saving on this device. Fluency Direct dictation compatibility mode ([details](docs/radnote/FLUENCY_DIRECT.md)).
+- **Offline dictation** ("Diktieren" in the report toolbar): Whisper runs in the browser. Choose a model under the gear icon → *Allgemein* → *Offline-Diktat*: Whisper small (CPU, ≈ 250 MB) or Whisper large-v3-turbo (WebGPU ≈ 560 MB, otherwise CPU ≈ 1.1 GB; much better medical terms), or a local model folder. Recordings last at most 30 s; the transcript appears as editable text under the section and is inserted only with *Einfügen*. "Neuer Absatz" / "neue Zeile" become paragraph and line breaks (switchable). Silence inserts nothing.
 
 **Report builders** (dropdown "Baukasten"): chest radiograph, MR angiography, head CT with ASPECTS, skeletal radiography (21 regions), esophagram. Unassessed structures never produce normal statements; manual preview edits are protected; transfers ask before appending or replacing. Details: [builders](docs/modules/builders.md), [chest](docs/modules/chest.md), [MRA](docs/modules/mra.md), [terminology sources](docs/radnote/TERMINOLOGY.md).
 
@@ -50,7 +51,7 @@ Without an AI provider selected, the app makes no network requests.
 
 ## Data handling
 
-Report text stays in the browser unless you copy, export or print it, enable draft saving (stored on this device), or run an AI action. API modes send the report sections and template notes to the endpoint shown in the panel; browser-model modes process them locally but download runtime and model files. API keys are never stored in plaintext: they stay in memory, in the password-encrypted configuration file, and (unless you choose *Vergessen*) in the encrypted copy in this browser. *Verbindung testen* sends a short fixed test text, not the report. On the hosted version, choosing a browser model also loads a small service worker from the same site (`coi-sw.js`) so the model can use several CPU threads; it transmits nothing. Use de-identified text and institution-approved services. See the [clinical and data notice](CLINICAL_NOTICE.md).
+Dictation audio stays in the browser's memory (at most 30 s), is cleared after transcription and is never stored or uploaded; the dictation model and runtime are downloaded once, only after you choose a dictation model. Report text stays in the browser unless you copy, export or print it, enable draft saving (stored on this device), or run an AI action. API modes send the report sections and template notes to the endpoint shown in the panel; browser-model modes process them locally but download runtime and model files. API keys are never stored in plaintext: they stay in memory, in the password-encrypted configuration file, and (unless you choose *Vergessen*) in the encrypted copy in this browser. *Verbindung testen* sends a short fixed test text, not the report. On the hosted version, choosing a browser model also loads a small service worker from the same site (`coi-sw.js`) so the model can use several CPU threads; it transmits nothing. Use de-identified text and institution-approved services. See the [clinical and data notice](CLINICAL_NOTICE.md).
 
 ## Development
 

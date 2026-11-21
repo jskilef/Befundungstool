@@ -107,6 +107,17 @@
   }
 
   // Strict validation: anything off-contract is rejected so it can never replace an accepted result.
+  /* Token estimates for checking, before sending, whether a report fits a model. About 3 characters
+     per token is deliberately conservative for German medical text (real tokenizers average 3.5–4).
+     outputTokens: what a complete answer needs: the bounded notes, plus for Revise every sent section
+     once more (JSON escaping included). If it does not fit, the request is not sent at all. */
+  const estimateTokens = text => Math.ceil(String(text).length / 3);
+  function outputTokens(mode, sections) {
+    const notes = 800;
+    if (mode === 'review') return notes;
+    return notes + Math.ceil(estimateTokens(sections.map(s => s.text).join('\n')) * 1.1) + 40 * sections.length;
+  }
+
   /* Hard limits for every provider (the schema LIMITS above only steer grammar-constrained backends).
      Generous enough for normal cloud answers; a runaway answer is rejected as a whole and never
      replaces an accepted result. */
@@ -119,18 +130,49 @@
     if (!r || typeof r !== 'object' || Array.isArray(r) || !Array.isArray(r.issues) || !Array.isArray(r.changes)) throw invalid();
     if (r.issues.some(i => !i || typeof i.category !== 'string' || typeof i.detail !== 'string' || (i.section != null && typeof i.section !== 'string'))) throw invalid();
     if (r.changes.some(c => typeof c !== 'string')) throw invalid();
+    // NUL characters never belong in report text (RepDict validText).
+    if (r.issues.some(i => i.category.includes('\u0000') || i.detail.includes('\u0000')) || r.changes.some(c => c.includes('\u0000'))) throw invalid();
     if (r.issues.length > HARD.issues || r.changes.length > HARD.changes || r.changes.some(c => c.length > HARD.change) ||
         r.issues.some(i => i.category.length > HARD.category || i.detail.length > HARD.detail)) throw invalid();
     const known = new Set(sectionIds);
     const issues = r.issues.map(i => ({ category: i.category, detail: i.detail, section: known.has(i.section) ? i.section : null }));
-    if (mode === 'review') return { issues, changes: r.changes.slice() };
+    // Review is notes only (RepDict "reviewRewrote"): rewritten sections reject the answer; a list of
+    // "changes" is dropped, since nothing was edited and showing it would suggest otherwise.
+    if (mode === 'review') {
+      if (Array.isArray(r.sections) ? r.sections.length : r.sections != null) throw invalid();
+      return { issues, changes: [] };
+    }
     if (!Array.isArray(r.sections)) throw invalid();
     const seen = new Set();
     for (const s of r.sections) {
       if (!s || typeof s.id !== 'string' || typeof s.text !== 'string' || s.text.length > HARD.text || !known.has(s.id) || seen.has(s.id)) throw invalid();
+      // A blank revision would wipe the field; only non-empty sections are sent, so it is a model failure.
+      if (!s.text.trim() || s.text.includes('\u0000')) throw invalid();
       seen.add(s.id);
     }
     return { sections: r.sections.map(s => ({ id: s.id, text: s.text })), issues, changes: r.changes.slice() };
+  }
+
+  /* Headings inside one section's text (RepDict ReportResult.parse, per section here): every standalone
+     heading line of the original must still appear in the revision, in the same order. Fields are
+     sections of their own, so this matters for free-text fields where users type "Befund:" etc.
+     Conservative structural guard, not a clinical-content check: only known section words and short
+     lines ending in ":" without digits or sentence punctuation count as headings. */
+  const KNOWN_HEADINGS = new Set(['befund', 'beurteilung', 'findings', 'impression', 'technik', 'technique', 'indikation', 'indication', 'vergleich', 'comparison', 'fragestellung', 'anamnese', 'voruntersuchung']);
+  function isHeading(line) {
+    const h = line.trim().toLowerCase();
+    return KNOWN_HEADINGS.has(h) || (h.endsWith(':') && h.length <= 80 && /[a-zäöüß]/.test(h) && !/[0-9.!?]/.test(h));
+  }
+  function headingsIntact(original, revised) {
+    const lines = String(revised).split('\n').map(l => l.trim().toLowerCase());
+    let cursor = 0;
+    for (const line of String(original).split('\n')) {
+      if (!isHeading(line)) continue;
+      const at = lines.indexOf(line.trim().toLowerCase(), cursor);
+      if (at < 0) return false;
+      cursor = at + 1;
+    }
+    return true;
   }
 
   // True when every protected phrase still occurs (as often) in the revised text.
@@ -145,5 +187,5 @@
     return true;
   }
 
-  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, HARD, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
+  return { DEFAULT_PROMPTS, DEFAULT_PROMPTS_DE, MAX_PROMPT, HARD, estimateTokens, outputTokens, headingsIntact, defaultPrompts, isDefaultPrompt, responseSchema, systemPrompt, userInput, parse, protectedIntact };
 });

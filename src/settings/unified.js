@@ -158,6 +158,29 @@
     return ai ? { ...merged, ai: clone(ai) } : merged;
   }
 
+  /* What an imported AI section would change about where report text goes (null: nothing).
+     A file can carry a provider and API endpoints; activating them silently could send future
+     reports to a server the user never chose, so the editor asks first. Browser models only accept
+     ids from a fixed list and run on this device, so only API endpoints are compared; switching to
+     "none" alone needs no confirmation. defaults: provider -> default endpoint (an empty profile
+     endpoint means the default). */
+  const API_PROVIDERS = PROVIDERS.filter(p => p !== 'none' && !LOCAL_PROVIDERS.includes(p));
+  function connectionChanges(current, incoming, defaults = {}) {
+    if (!incoming) return null;
+    const endpointOf = (ai, p) => ai?.profiles?.[p]?.endpoint || defaults[p] || '';
+    const from = current?.provider || 'none', to = incoming.provider;
+    const endpoints = API_PROVIDERS
+      .filter(p => incoming.profiles?.[p] && endpointOf(current, p) !== endpointOf(incoming, p))
+      .map(p => ({ provider: p, from: endpointOf(current, p), to: endpointOf(incoming, p) }));
+    if ((to === 'none' || to === from) && !endpoints.length) return null;
+    return {
+      from, to,
+      endpoint: API_PROVIDERS.includes(to) ? endpointOf(incoming, to) : '',
+      model: to === 'none' ? '' : incoming.profiles?.[to]?.model || '',
+      endpoints
+    };
+  }
+
   // Strips API keys unless explicitly requested; a file with keys must then be encrypted by the caller.
   function serialize(state, { appVersion, includeKeys = false } = {}) {
     const out = {
@@ -180,6 +203,6 @@
 
   return {
     FORMAT, VERSION, PROVIDERS, LOCAL_PROVIDERS, REPORT_LANGUAGES, LOCAL_DTYPES,
-    validEndpoint, validAi, splitTemplateBody, parse, merge, serialize, hasKeys
+    validEndpoint, validAi, splitTemplateBody, parse, merge, serialize, hasKeys, connectionChanges
   };
 });

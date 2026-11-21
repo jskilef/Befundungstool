@@ -16,4 +16,7 @@ for(const alter of [b=>b.version=99,b=>b.format='unknown',b=>b.macros.push(macro
 const cross={...structuredClone(backup),templates:[{id:'custom-f',name:'Überlappung',fields:[{id:'custom-other',label:'Text',defaultText:''}]}],settings:{...settings,selectedTemplate:'custom-f'}};
 const crossMerge=C.merge(merged,C.parse(cross),nextId);assert(C.validTemplates(crossMerge.templates));assert.notEqual(crossMerge.settings.selectedTemplate,'custom-f');
 const limits={...empty,macros:Array.from({length:1000},(_,i)=>({...macro,code:'m'+i}))};assert.throws(()=>C.merge(limits,C.parse([{...macro,code:'one-more'}]),nextId));
+// Copy/export layout: headings in capitals or as named, 0–3 blank lines; optional for older files.
+assert(C.validCopyFormat({headings:'asNamed',blankLines:0})&&C.validCopyFormat({headings:'upper',blankLines:3}));
+for(const bad of [{headings:'lower',blankLines:1},{headings:'upper',blankLines:4},{headings:'upper',blankLines:1.5},{headings:'upper',blankLines:-1},{headings:'upper',blankLines:1,extra:true},null])assert(!C.validCopyFormat(bad));
 assert.deepEqual(backup.templates,[template]);console.log('Konfiguration: Rundlauf, alte Makrodateien, Konfliktkopien, eindeutige IDs, Schema- und Grenzwertprüfung bestanden.');

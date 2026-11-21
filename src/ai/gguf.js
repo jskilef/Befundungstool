@@ -170,6 +170,16 @@
      runtime instance is disposed (once), so a cancelled or replaced load never becomes current and the
      model in use always matches the selected file. */
   const SUPERSEDED = 'The browser model was unloaded or changed while it was working. Run the action again.';
+  // Same message (and translation key) as AiProviders.TOO_LONG; carries the token counts.
+  const TOO_LONG = "The report is too long for this model's context. Shorten the report, use Review instead of Revise, or choose a model with a larger context.";
+  function tooLong(used) {
+    const error = new Error(TOO_LONG);
+    error.name = 'ProviderError';
+    error.hint = TOO_LONG;
+    error.code = 'context';
+    error.tokens = { used, limit: CONTEXT_TOKENS };
+    return error;
+  }
   function createRunner({ onProgress = () => {}, importer = url => import(url), FileImpl = globalThis.File } = {}) {
     let wllama = null, loadedKey = null, file = null, busy = false, generation = 0;
     const pending = new Set();          // instances still loading
@@ -230,13 +240,23 @@
       return instance;
     }
 
-    // Output budget: what the context leaves after the prompt (≈ 3 characters per token, conservative).
-    function outputBudget(messages) {
-      const promptTokens = Math.ceil(messages.reduce((n, m) => n + String(m.content || '').length, 0) / 3) + 64;
-      return Math.max(256, Math.min(4096, CONTEXT_TOKENS - promptTokens - 128));
+    /* Prompt size with the model's own tokenizer and chat template when the runtime offers them
+       (wllama: formatChat + tokenize), otherwise ≈ 3 characters per token (conservative). */
+    async function promptTokens(instance, messages) {
+      try {
+        if (instance.formatChat && instance.tokenize) return (await instance.tokenize(await instance.formatChat(messages, true), true)).length;
+        if (instance.tokenize) {
+          let n = 0;
+          for (const m of messages) n += (await instance.tokenize(String(m.content || ''), true)).length + 16;
+          return n + 32;
+        }
+      } catch { /* fall back to the estimate */ }
+      return Math.ceil(messages.reduce((n, m) => n + String(m.content || '').length, 0) / 3) + 64;
     }
 
-    async function request(messages, { schema, signal, maxTokens = outputBudget(messages) } = {}) {
+    /* minOutput: tokens a complete answer needs (AiContract.outputTokens). If prompt + answer do not fit
+       the context, nothing is generated: a cut-off answer would be useless and could look complete. */
+    async function request(messages, { schema, signal, minOutput = 1024 } = {}) {
       if (busy) throw new Error('A browser model request is already running.');
       if (signal?.aborted) throw abortError();
       busy = true;
@@ -246,9 +266,13 @@
         const instance = await ensureLoaded();
         const started = generation;
         if (signal?.aborted) throw abortError();
+        const prompt = await promptTokens(instance, messages);
+        if (started !== generation) throw new Error(SUPERSEDED);
+        const room = CONTEXT_TOKENS - prompt - 32;
+        if (room < minOutput) throw tooLong(prompt + minOutput);
         onProgress('Generating locally…');
         const response = await instance.createChatCompletion({
-          messages, max_tokens: maxTokens, temperature: 0.2, penalty_repeat: 1.1, penalty_last_n: 256, abortSignal: signal,
+          messages, max_tokens: Math.min(room, Math.max(4096, minOutput)), temperature: 0.2, penalty_repeat: 1.1, penalty_last_n: 256, abortSignal: signal,
           ...(schema ? { response_format: { type: 'json_schema', json_schema: { name: 'befundungstool_result', strict: true, schema } } } : {})
         });
         if (signal?.aborted) throw abortError();
@@ -274,5 +298,5 @@
     };
   }
 
-  return { TYPE, DEFAULT_SHARD_BYTES, WLLAMA_VERSION, SUPERSEDED, parse, plan, split, shardName, createRunner };
+  return { TYPE, DEFAULT_SHARD_BYTES, WLLAMA_VERSION, SUPERSEDED, TOO_LONG, CONTEXT_TOKENS, parse, plan, split, shardName, createRunner };
 });

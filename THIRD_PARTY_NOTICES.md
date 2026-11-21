@@ -95,6 +95,17 @@ Experimental MedGemma text-only inference uses [Transformers.js 4.3.0](https://g
 
 Custom local models are supplied by the user and retain their original licenses. Befundungstool does not redistribute or relicense their weights or compiled model libraries. The optional MedGemma 1.5 preset references [geeek/medgemma-1.5-4b-it-ONNX](https://huggingface.co/geeek/medgemma-1.5-4b-it-ONNX), based on [google/medgemma-1.5-4b-it](https://huggingface.co/google/medgemma-1.5-4b-it), under the applicable Health AI Developer Foundations terms.
 
+## Offline dictation (Whisper)
+
+Offline dictation runs speech recognition in the browser with the same [Transformers.js 3.8.1](https://github.com/huggingface/transformers.js/tree/3.8.1) runtime (Apache-2.0, listed above), loaded from jsDelivr only after a dictation model is chosen. The presets download these Whisper conversions from Hugging Face at a pinned revision:
+
+| Preset | License evidence | Pinned revision |
+| --- | --- | --- |
+| `onnx-community/whisper-small` | Conversion of [openai/whisper-small](https://huggingface.co/openai/whisper-small); OpenAI's Whisper code and weights are MIT. [Whisper license](licenses/whisper-LICENSE.txt). | [`36050c46d777d46dc4b5f43f6d90574fc38f8732`](https://huggingface.co/onnx-community/whisper-small/tree/36050c46d777d46dc4b5f43f6d90574fc38f8732) |
+| `onnx-community/whisper-large-v3-turbo` | Conversion of [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo); MIT. [Whisper license](licenses/whisper-LICENSE.txt). | [`360ebcde2559d60bb474678be3c1de9ef347d01a`](https://huggingface.co/onnx-community/whisper-large-v3-turbo/tree/360ebcde2559d60bb474678be3c1de9ef347d01a) |
+
+At inspection (2026-11-21) the `whisper-small` and `whisper-large-v3-turbo` conversion repositories carried no license metadata of their own; the MIT license above covers the original OpenAI weights, not a blanket clearance of the converted artifacts. No weights are redistributed. A local model folder chosen by the user keeps its own license.
+
 ## Bundled font: Roboto
 
 The application embeds the Roboto variable font (Latin, Latin Extended and Greek subsets, as served by Google Fonts, Roboto v51) so that it renders identically offline. Copyright 2011 The Roboto Project Authors ([googlefonts/roboto-classic](https://github.com/googlefonts/roboto-classic)), licensed under the [SIL Open Font License 1.1](licenses/Roboto-OFL.txt). The font files are unmodified; their source URLs and SHA-256 hashes are recorded in [licenses/SOURCES.json](licenses/SOURCES.json). The OFL permits bundling with software; the font may not be sold on its own, and its license must accompany redistributions. This is the only third-party binary included in the release.

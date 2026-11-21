@@ -134,5 +134,21 @@ const empty = { macros: [], templates: [], chestFavorites: [], settings: { ...se
   assert(!Crypto.isEncrypted({ version: 2, macros: [macro] }), 'radnote macro files are not encrypted envelopes');
 
   assert.deepEqual(state.templates, [template], 'inputs must not be mutated');
+
+  // Imported AI connections: what would change where report text goes (the editor asks before activating it).
+  const defaults = { openai: 'https://api.openai.com/v1/chat/completions', gemini: 'https://generativelanguage.googleapis.com/v1beta/models', compatible: '', lmstudio: 'http://127.0.0.1:1234/v1/chat/completions' };
+  const mine = { provider: 'openai', reportLanguage: 'German', profiles: { openai: { endpoint: defaults.openai, model: 'm' } } };
+  const change = S.connectionChanges(mine, { provider: 'compatible', reportLanguage: 'German', profiles: { compatible: { endpoint: 'https://other.example.test/v1', model: 'x' } } }, defaults);
+  assert.deepEqual(change, { from: 'openai', to: 'compatible', endpoint: 'https://other.example.test/v1', model: 'x', endpoints: [{ provider: 'compatible', from: '', to: 'https://other.example.test/v1' }] });
+  assert.equal(S.connectionChanges(mine, { ...mine, prompts: { review: 'r', revise: 'v' }, reportLanguage: 'English' }, defaults), null, 'same connection: no question');
+  assert.equal(S.connectionChanges(mine, { ...mine, profiles: { openai: { endpoint: '', model: 'other-model' } } }, defaults), null, 'empty endpoint means the default');
+  assert.equal(S.connectionChanges(mine, { provider: 'none', reportLanguage: 'German', profiles: {} }, defaults), null, 'switching AI off needs no question');
+  const sameProviderNewEndpoint = S.connectionChanges(mine, { ...mine, profiles: { openai: { endpoint: 'https://proxy.example.test/v1', model: 'm' } } }, defaults);
+  assert.equal(sameProviderNewEndpoint.endpoint, 'https://proxy.example.test/v1');
+  const dormant = S.connectionChanges(mine, { ...mine, profiles: { ...mine.profiles, gemini: { endpoint: 'https://gemini.example.test/v1beta/models', model: 'g' } } }, defaults);
+  assert.deepEqual(dormant.endpoints.map(e => e.provider), ['gemini'], 'inactive profiles count too: they are used after a provider switch');
+  assert.equal(S.connectionChanges(null, { provider: 'gguf', reportLanguage: 'German', profiles: { gguf: { endpoint: '', model: '' } } }, defaults).to, 'gguf', 'new provider from nothing asks');
+  assert.equal(S.connectionChanges(null, { provider: 'openai', reportLanguage: 'German', profiles: {} }, defaults).endpoint, defaults.openai);
+  assert.equal(S.connectionChanges(mine, null, defaults), null);
   console.log('Einstellungen: eigenes Format, Schlüsseltrennung, radnote- und Report-Studio-Import, Vorlagenaufteilung, Verschlüsselung und Manipulationsschutz bestanden.');
 })().catch(error => { console.error(error); process.exit(1); });

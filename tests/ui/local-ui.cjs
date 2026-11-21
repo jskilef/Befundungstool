@@ -22,7 +22,9 @@ export async function pipeline(task, model, options) {
     if (findings.text.includes('FAKE_HANG')) await new Promise(() => {});
     if (findings.text.includes('FAKE_PROSE')) return [{generated_text: 'The report looks fine.'}];
     const info = model + '|' + options.dtype + '|' + options.device + '|merged:' + (lastMessages.length === 1);
-    return [{generated_text: JSON.stringify({sections: [{id: findings.id, text: findings.text.replace('gross', 'groß')}], issues: [{category: 'runtime', detail: info}], changes: []})}];
+    // Like a real model: rewritten sections only for Revise (a Review answer with sections is rejected).
+    const review = lastMessages.map(m => m.content).join(' ').includes('Nur prüfen');
+    return [{generated_text: JSON.stringify({...(review ? {} : {sections: [{id: findings.id, text: findings.text.replace('gross', 'groß')}]}), issues: [{category: 'runtime', detail: info}], changes: []})}];
   };
   generator.tokenizer = () => ({input_ids: {dims: [1, 100]}});
   generator.tokenizer.apply_chat_template = messages => { lastMessages = messages; return 'rendered'; };
@@ -76,6 +78,13 @@ function makeFolder(name, files) {
     assert.equal(await page.locator('#aiNotes .ai-issue').textContent(), 'runtimeonnx-community/Qwen3-0.6B-ONNX|q8|wasm|merged:false');
     assert.equal(await page.locator('#aiModelProgress').textContent(), 'Browser-Modell bereit.');
     assert(await page.locator('#aiRevise').isEnabled());
+
+    // A revision that cannot fit the CPU worker's 1,024 new tokens is refused before the worker runs.
+    await page.locator('#findings').fill('Synthetischer Befund. '.repeat(46));
+    await page.locator('#aiRevise').click();
+    await waitStatus('Der Befund ist zu lang für den Kontext dieses Modells.');
+    assert.match(await page.locator('#aiStatus').textContent(), /\(etwa 1\.\d{3} \/ 1\.024 Token\)$/);
+    assert(await page.locator('#aiRawBox').isHidden());
 
     // Unstructured output is rejected and shown as raw text.
     await page.locator('#findings').fill('FAKE_PROSE');

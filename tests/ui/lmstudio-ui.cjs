@@ -12,7 +12,7 @@ const json = body => ({ status: 200, contentType: 'application/json', headers: {
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.BT_CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
   const errors = [], chats = [], external = [];
-  let serverUp = true;
+  let serverUp = true, cutOff = false;
   try {
     const context = await browser.newContext();
     await context.route('**/*', route => {
@@ -24,6 +24,7 @@ const json = body => ({ status: 200, contentType: 'application/json', headers: {
         if (url.endsWith('/v1/models')) return route.fulfill(json({ data: [{ id: 'radgen-qwen-lora' }, { id: 'radgen-ministral-lora' }, { id: 'text-embedding-nomic-embed-text-v1.5' }] }));
         const body = route.request().postDataJSON();
         chats.push({ body, headers: route.request().headers() });
+        if (cutOff) return route.fulfill(json({ choices: [{ finish_reason: 'length', message: { content: '{"sections":[{"id":"findings","text":"Synthetisch abgeschnitten' } }] }));
         const payload = JSON.parse(body.messages[1].content);
         const findings = payload.sections.find(s => s.id === 'findings');
         return route.fulfill(json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ sections: [{ id: 'findings', text: findings.text.replace('gross', 'groß') }], issues: [{ category: 'Seitenangabe', detail: 'Synthetischer Hinweis.', section: 'findings' }], changes: [] }) } }] }));
@@ -59,6 +60,14 @@ const json = body => ({ status: 200, contentType: 'application/json', headers: {
     assert.deepEqual(chats[0].body.response_format.json_schema.schema.required, ['sections', 'issues', 'changes']);
     assert.equal(chats[0].headers.authorization, undefined);
     assert.equal(await page.locator('.ai-section[data-section=findings] ins').textContent(), 'groß');
+
+    // Answer cut off at the model's limit: LM Studio-specific "too long" message, the partial answer is discarded.
+    cutOff = true;
+    await page.locator('#aiRevise').click();
+    await waitStatus('Der Befund ist zu lang für den Kontext dieses Modells. Befund kürzen, Prüfen statt Überarbeiten verwenden oder die Kontextlänge des Modells in LM Studio erhöhen.');
+    assert(await page.locator('#aiRawBox').isHidden(), 'no partial output');
+    assert(!(await page.locator('#aiRaw').textContent()).includes('Synthetisch abgeschnitten'));
+    cutOff = false;
 
     // Server unreachable (or CORS off): a specific hint instead of a generic network error.
     serverUp = false;

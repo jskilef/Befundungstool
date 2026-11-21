@@ -58,7 +58,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     assert.equal(await page.inputValue('#impression'), 'Kein Pleuraerguss oder Pneumothorax.');
     // Copy/export without the study/patient/date header.
     const plain = await exported();
-    assert.match(plain, /^KLINISCHE ANGABEN\n/);
+    assert.match(plain, /^BEFUND\nSynthetischer Befund\.\n\nBEURTEILUNG\n/, 'empty sections are left out');
     assert(!plain.includes('Synthetische Referenz') && !plain.includes('RADIOLOGISCHER BEFUND'));
 
     // Hidden tools keep their data; settings persist across reloads.
@@ -71,7 +71,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
 
     // The configuration file carries the choices; a fresh browser restores them.
     const saved = await saveConfiguration(page);
-    assert.deepEqual(saved.data.settings.features, { builders: true, dictation: false, meta: false, ai: false, sidebar: false });
+    assert.deepEqual(saved.data.settings.features, { builders: true, dictation: false, meta: false, ai: false, sidebar: false, speech: true });
     const fresh = await (await browser.newContext()).newPage();
     fresh.on('pageerror', e => errors.push(e.message));
     await fresh.route('https://befundungstool.test/**', r => r.fulfill({ contentType: 'text/html', body: html }));

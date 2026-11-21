@@ -48,6 +48,24 @@ function response(status, data, headers = {}) {
   assert.deepEqual(Contract.parse('```json\n' + JSON.stringify(revise) + '\n```', 'revise', ids).sections, revise.sections);
   assert.equal(Contract.parse(JSON.stringify({ ...revise, issues: [{ category: 'X', detail: 'Y', section: 'unknown' }] }), 'revise', ids).issues[0].section, null);
   assert.deepEqual(Contract.parse(JSON.stringify({ issues: [], changes: [] }), 'review', ids), { issues: [], changes: [] });
+
+  // Safeguards ported from RepDict (ReportResult.parse), adapted to sections.
+  assert.deepEqual(Contract.parse(JSON.stringify({ issues: [], changes: ['Synthetische Änderung'] }), 'review', ids).changes, [], 'Review: claimed edits are dropped');
+  assert.deepEqual(Contract.parse(JSON.stringify({ issues: [], changes: [], sections: [] }), 'review', ids).issues, [], 'Review: an empty sections list is harmless');
+  assert.throws(() => Contract.parse(JSON.stringify({ issues: [], changes: [], sections: [{ id: 'findings', text: 'x' }] }), 'review', ids), /Unexpected response format/, 'Review must not rewrite');
+  assert.throws(() => Contract.parse(JSON.stringify({ ...revise, sections: [{ id: 'findings', text: '  \n ' }] }), 'revise', ids), /Unexpected response format/, 'a blank revision would wipe the field');
+  assert.throws(() => Contract.parse(JSON.stringify({ ...revise, sections: [{ id: 'findings', text: 'a\u0000b' }] }), 'revise', ids), /Unexpected response format/);
+  assert.throws(() => Contract.parse(JSON.stringify({ ...revise, issues: [{ category: 'x', detail: 'a\u0000' }] }), 'revise', ids), /Unexpected response format/);
+  // Headings inside one section: removed, reordered or merged headings are detected; wording changes are not.
+  const free = 'Befund:\nHerz normal gross.\n\nBeurteilung:\nUnauffaellig.';
+  assert(Contract.headingsIntact(free, 'Befund:\nHerz normal groß.\n\nBeurteilung:\nUnauffällig.'));
+  assert(Contract.headingsIntact(free, 'BEFUND:\n  Herz normal groß.\nBeurteilung: \nUnauffällig.'), 'case and spacing are ignored');
+  assert(!Contract.headingsIntact(free, 'Befund:\nHerz normal groß. Unauffällig.'), 'heading removed');
+  assert(!Contract.headingsIntact(free, 'Beurteilung:\nUnauffällig.\nBefund:\nHerz normal groß.'), 'headings reordered');
+  assert(!Contract.headingsIntact(free, 'Befund: Herz normal groß.\nBeurteilung: Unauffällig.'), 'heading merged into its text');
+  assert(Contract.headingsIntact('Herz normal gross. Lunge: frei.', 'Herz normal groß. Lunge frei.'), 'inline colons are not headings');
+  assert(Contract.headingsIntact('Messung 12 mm:\nx', 'y'), 'lines with digits are not headings');
+  assert(!Contract.headingsIntact('Befund\nHerz.', 'Herz.'), 'known section words count without a colon');
   for (const bad of [
     'Here is the revised report: ...',
     JSON.stringify({ issues: [], changes: [] }),
@@ -139,7 +157,7 @@ function response(status, data, headers = {}) {
   assert.equal(JSON.parse(seen.init.body).url, P.DEFAULT_ENDPOINTS.openai);
 
   // Response text extraction.
-  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{' } }] }, 'openai'), e => e.code === 'length');
+  assert.throws(() => P.responseText({ choices: [{ finish_reason: 'length', message: { content: '{' } }] }, 'openai'), e => e.code === 'context' && e.hint === P.TOO_LONG);
   assert.throws(() => P.responseText({ choices: [{ message: { content: ' ' } }] }, 'compatible'), /no text/);
   assert.equal(P.responseText({ candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'hidden' }, { text: '{"a":1}' }] } }] }, 'gemini'), '{"a":1}');
   assert.throws(() => P.responseText({ candidates: [] }, 'gemini'), /no candidate/);

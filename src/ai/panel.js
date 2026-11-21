@@ -36,6 +36,8 @@
     'Previous result: the latest request did not complete.': 'Früheres Ergebnis: Die letzte Anfrage wurde nicht abgeschlossen.',
     'This result is outdated or the latest request failed. Apply it anyway?': 'Dieses Ergebnis ist veraltet oder die letzte Anfrage ist fehlgeschlagen. Trotzdem übernehmen?',
     'The AI changed frozen text in this section. Apply anyway?': 'Die KI hat fixierten Text in diesem Abschnitt verändert. Trotzdem übernehmen?',
+    'The AI removed, reordered or merged headings in this section. Check it before applying.': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Vor der Übernahme prüfen.',
+    'The AI removed, reordered or merged headings in this section. Apply anyway?': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Trotzdem übernehmen?',
     'Generated': 'Erstellt', 'Applied to the report.': 'In den Befund übernommen.',
     'Enter a report first.': 'Zuerst einen Befund eingeben.', 'Choose an AI provider.': 'Einen KI-Anbieter wählen.',
     'Enter the model ID.': 'Modell-ID eingeben.', 'Enter your API key.': 'API-Schlüssel eingeben.',
@@ -67,7 +69,10 @@
     'Direct browser connection failed (network, CORS, or browser restrictions). Check the endpoint (the provider’s base URL, e.g. https://api.mistral.ai/v1) or try the local launcher.': 'Direkte Browserverbindung fehlgeschlagen (Netzwerk, CORS oder Browserbeschränkungen). Endpunkt prüfen (Basis-URL des Anbieters, z. B. https://api.mistral.ai/v1) oder den lokalen Starter verwenden.',
     'Local connection failed. Check the terminal running the launcher and your network.': 'Lokale Verbindung fehlgeschlagen. Terminal des Starters und Netzwerk prüfen.',
     'Enter non-empty task instructions in Advanced settings (maximum 20,000 characters).': 'In den erweiterten Einstellungen nicht leere Anweisungen eingeben (maximal 20.000 Zeichen).',
-    'Reset this prompt to its default?': 'Diesen Prompt auf den Standard zurücksetzen?'
+    'Reset this prompt to its default?': 'Diesen Prompt auf den Standard zurücksetzen?',
+    "The report is too long for this model's context. Shorten the report, use Review instead of Revise, or choose a model with a larger context.": 'Der Befund ist zu lang für den Kontext dieses Modells. Befund kürzen, Prüfen statt Überarbeiten verwenden oder ein Modell mit größerem Kontext wählen.',
+    "The report is too long for this model's context. Shorten the report, use Review instead of Revise, or increase the model's context length in LM Studio.": 'Der Befund ist zu lang für den Kontext dieses Modells. Befund kürzen, Prüfen statt Überarbeiten verwenden oder die Kontextlänge des Modells in LM Studio erhöhen.',
+    'about': 'etwa', 'tokens': 'Token'
   };
 
   Object.assign(DE, {
@@ -105,7 +110,6 @@
   });
 
   Object.assign(DE, {
-    "The answer reached the model's length limit and was cut off. Try a shorter report or Review instead of Revise. With LM Studio, increase the model's context length.": 'Die Antwort hat die Längengrenze des Modells erreicht und wurde abgeschnitten. Einen kürzeren Befund oder „Prüfen“ statt „Überarbeiten“ versuchen. Bei LM Studio die Kontextlänge des Modells erhöhen.'
   });
   Object.assign(DE, {
     'Browser local · GGUF model file (llama.cpp)': 'Lokal im Browser · GGUF-Modelldatei (llama.cpp)', 'GGUF model file': 'GGUF-Modelldatei',
@@ -517,6 +521,11 @@
     function describeError(error) {
       if (error?.name === 'AbortError') return ['Cancelled or timed out.', ''];
       if (error?.name === 'TypeError') return [Providers.connectionError(launcher, ui.provider.value), ''];
+      // Too long for the model: one specific message, with token counts when known.
+      if (error?.name === 'ProviderError' && error.code === 'context') {
+        const n = value => Number(value).toLocaleString(bridge.uiLanguage() === 'de' ? 'de-DE' : 'en-US');
+        return [error.hint, error.tokens ? ' (' + t('about') + ' ' + n(error.tokens.used) + ' / ' + n(error.tokens.limit) + ' ' + t('tokens') + ')' : ''];
+      }
       if (error?.name === 'ProviderError') return [error.hint, (error.status ? ' (HTTP ' + error.status + ')' : '') + (error.code ? ' [' + error.code + ']' : '')];
       return [String(error?.message || 'Provider request failed.'), ''];
     }
@@ -617,6 +626,7 @@
         draftField.hidden = true;
         const state = node('span', { class: 'ai-section-state' });
         const frozenWarning = node('p', { class: 'ai-warning', text: 'The AI changed frozen text in this section. Check it before applying.', hidden: s.protectedOk });
+        const headingWarning = node('p', { class: 'ai-warning ai-heading-warning', text: 'The AI removed, reordered or merged headings in this section. Check it before applying.', hidden: s.headingsOk });
         const buttons = node('div', { class: 'ai-section-actions' }, [
           node('button', { type: 'button', class: 'primary', 'data-apply': 'replace', text: 'Apply' }),
           node('button', { type: 'button', 'data-apply': 'append', text: 'Append' }),
@@ -629,7 +639,7 @@
           if (button?.dataset.apply) applySection(s, button.dataset.apply, draft.value);
         };
         const head = node('div', { class: 'ai-section-head' }, [node('span', { class: 'ai-label', text: 'AI suggestion' }), state]);
-        const card = node('section', { class: 'ai-section', 'data-section': s.id, 'aria-label': s.label }, [head, frozenWarning, diff, draftField, buttons]);
+        const card = node('section', { class: 'ai-section', 'data-section': s.id, 'aria-label': s.label }, [head, frozenWarning, headingWarning, diff, draftField, buttons]);
         renderDiff(diff, s.original, s.proposed);
         s.el = { card, state, buttons, draft };
         bridge.sectionHost(s.id).append(card);
@@ -643,6 +653,7 @@
       if (mode === 'discard') { section.discarded = true; removeCard(section); return; }
       if ((sectionStale(section) || revisionFailed) && !bridge.confirm(t('This result is outdated or the latest request failed. Apply it anyway?'))) return;
       if (!Contract.protectedIntact(section.protected, text) && !bridge.confirm(t('The AI changed frozen text in this section. Apply anyway?'))) return;
+      if (!Contract.headingsIntact(section.original, text) && !bridge.confirm(t('The AI removed, reordered or merged headings in this section. Apply anyway?'))) return;
       const result = bridge.apply(section.id, text, mode);
       if (!result.ok) { bridge.notify(result.message); return; }
       section.applied = mode;
@@ -716,7 +727,7 @@
         // Small CPU models follow the JSON contract more reliably with an example (as in Report Studio).
         const system = Contract.systemPrompt(mode, before.prompt, bridge.uiLanguage(), { example: provider === 'wasm', promptLanguage: promptLanguage() });
         const input = Contract.userInput({ sections, template: before.template, reportLanguage: settings.reportLanguage });
-        const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode, { sections }));
+        const data = await send(provider, endpoint, key, model, system, input, controller.signal, Contract.responseSchema(mode, { sections }), Contract.outputTokens(mode, sections));
         const text = Providers.responseText(data, isOnDevice(provider) ? 'compatible' : provider);
         let parsed;
         try {
@@ -737,7 +748,7 @@
             snapshot: before, expected, time,
             sections: sections.filter(s => proposals.has(s.id)).map(s => {
               const proposed = proposals.get(s.id);
-              return { id: s.id, label: s.label, original: s.text, protected: s.protected, proposed, protectedOk: Contract.protectedIntact(s.protected, proposed), applied: false, discarded: false, el: null };
+              return { id: s.id, label: s.label, original: s.text, protected: s.protected, proposed, protectedOk: Contract.protectedIntact(s.protected, proposed), headingsOk: Contract.headingsIntact(s.text, proposed), applied: false, discarded: false, el: null };
             })
           };
           revisionFailed = false;
@@ -753,8 +764,6 @@
           !changedMeanwhile && proposals ? ' (' + proposals + ' ' + t(proposals === 1 ? 'suggestion' : 'suggestions') + ')' : '');
         if (proposals) bridge.focusSection(revision.sections.find(s => s.proposed !== s.original).id, { scrollOnly: true });
       } catch (error) {
-        // A cut-off answer is shown as raw text so the user can see what the model produced.
-        if (error?.partial) { ui.raw.textContent = String(error.partial).slice(0, RAW_LIMIT); ui.rawBox.hidden = false; }
         if (mode === 'revise' && revision) revisionFailed = true;
         if (notes) notesFailed = true;
         refresh();
@@ -768,13 +777,30 @@
     ui.review.onclick = () => runAction('review');
     ui.revise.onclick = () => runAction('revise');
 
+    /* Limits fixed in the ported worker sources (local.js): Transformers.js generates at most 1,024 new
+       tokens (its prompt limit of 2,048 is checked exactly in the worker); WebLLM at most 2,048 new tokens,
+       and the prebuilt Qwen3 MLC models run with a 4,096-token context. An answer that cannot fit is not
+       requested at all (estimate: AiContract.estimateTokens). */
+    function checkLocalFit(request, promptText, minOutput) {
+      const cpu = Local.usesCpuWorker(request, runner.bundle);
+      const prompt = Contract.estimateTokens(promptText) + 64;
+      const tooLong = (used, limit) => new Providers.ProviderError(Providers.TOO_LONG, { code: 'context', tokens: { used, limit } });
+      if (cpu && minOutput > 1024) throw tooLong(minOutput, 1024);
+      if (!cpu && (minOutput > 2048 || prompt + minOutput > 4096)) throw tooLong(prompt + minOutput, minOutput > 2048 && prompt + minOutput <= 4096 ? 2048 : 4096);
+    }
+
     // API providers go through fetch; browser-local providers through the worker runner. Never both.
-    function send(provider, endpoint, key, model, system, input, signal, schema) {
-      if (provider === 'gguf') return ggufRunner.request([{ role: 'system', content: system }, { role: 'user', content: input }], { schema, signal });
-      if (isLocal(provider)) return runner.request(Local.buildLocalRequest(provider, model, system, input), signal);
+    // minOutput: tokens a complete answer needs (AiContract.outputTokens); omitted for the connection test.
+    function send(provider, endpoint, key, model, system, input, signal, schema, minOutput) {
+      if (provider === 'gguf') return ggufRunner.request([{ role: 'system', content: system }, { role: 'user', content: input }], { schema, signal, ...(minOutput ? { minOutput } : {}) });
+      if (isLocal(provider)) {
+        const request = Local.buildLocalRequest(provider, model, system, input);
+        if (minOutput) checkLocalFit(request, system + input, minOutput);
+        return runner.request(request, signal);
+      }
       const request = Providers.buildRequest(provider, endpoint, key, model, system, input, { schema });
       return Providers.sendRequest(request, {
-        signal, viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '',
+        provider, signal, viaLocal: launcher, localToken: launcher ? root.BefundungstoolLocal.token : '',
         onRetry: ({ status, attempt, seconds }) => setStatus('Temporary provider failure. Retrying', false, ` ${attempt}/2 (HTTP ${status}, ${seconds} s)…`)
       });
     }

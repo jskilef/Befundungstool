@@ -63,6 +63,11 @@ const reportStudio = {
     assert(await page.locator('#rememberInBrowser').isChecked(), 'keeping an encrypted copy is the default');
     await page.locator('#rememberInBrowser').uncheck();
     await page.locator('#passwordSubmit').click();
+    // The file's AI connection waits for confirmation and is shown first.
+    await page.locator('#aiImportDialog').waitFor();
+    assert.deepEqual(await page.locator('#aiImportList dt').allTextContents(), ['Anbieter', 'Endpunkt', 'Modell-ID']);
+    assert.deepEqual(await page.locator('#aiImportList dd').allTextContents(), ['Keine KI → OpenAI', 'https://api.openai.com/v1/chat/completions', 'synthetic-model']);
+    await page.locator('#aiImportApply').click();
     await toast('Report-Studio-Einstellungen importiert');
     assert(!await page.evaluate(() => localStorage.getItem('befundungstool-vault-v1')), 'no copy when unticked');
     assert.equal(await page.inputValue('#findings'), 'Aus radnote übernommen.', 'import must keep report text');
@@ -125,6 +130,7 @@ const reportStudio = {
     await fresh.locator('#macroFile').setInputFiles({ name: 'b.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(encrypted.data)) });
     await fresh.locator('#settingsPassword').fill(PASSWORD);
     await fresh.locator('#passwordSubmit').click();
+    await fresh.locator('#aiImportApply').click();
     await fresh.waitForFunction(() => document.querySelector('#toast').textContent === 'Konfiguration geladen');
     assert.equal(await fresh.locator('#template option[data-custom]').textContent(), 'General radiology');
     assert.equal(await fresh.inputValue('#aiKey'), 'sk-synthetic-ui', 'key restored into memory from the encrypted file');

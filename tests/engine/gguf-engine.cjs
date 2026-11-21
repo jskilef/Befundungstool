@@ -69,9 +69,30 @@ const { buildGguf, readGguf } = require('../helpers/gguf.cjs');
   assert.equal(calls[3][1].penalty_repeat, 1.1);
   assert.equal(calls[2][2], 8192, 'context');
   assert(progress.includes('Browser model ready. (CPU)'));
-  // Long prompts shrink the output budget so prompt + answer fit the context.
+  // Long prompts: the output budget is what the context leaves; a report that cannot fit is refused
+  // before generation (no cut-off answer), with token counts.
   await runner.request([{ role: 'user', content: 'x'.repeat(15000) }]);
-  assert.equal(calls.at(-1)[1].max_tokens, 8192 - Math.ceil(15000 / 3) - 64 - 128);
+  assert.equal(calls.at(-1)[1].max_tokens, 8192 - (Math.ceil(15000 / 3) + 64) - 32);
+  const chatsBefore = calls.filter(c => c[0] === 'chat').length;
+  await assert.rejects(runner.request([{ role: 'user', content: 'x'.repeat(15000) }], { minOutput: 4000 }),
+    e => e.code === 'context' && e.hint === G.TOO_LONG && e.tokens.limit === 8192 && e.tokens.used === Math.ceil(15000 / 3) + 64 + 4000);
+  assert.equal(calls.filter(c => c[0] === 'chat').length, chatsBefore, 'nothing generated');
+  // With the runtime's tokenizer and chat template the exact count is used (here 4 characters per token).
+  {
+    let budget;
+    class TokenizingWllama {
+      isSupportWebGPU() { return false; }
+      async loadModel() {}
+      async exit() {}
+      async formatChat(messages) { return messages.map(m => m.content).join(''); }
+      async tokenize(text) { return new Array(Math.ceil(text.length / 4)).fill(1); }
+      async createChatCompletion(options) { budget = options.max_tokens; return { choices: [{ finish_reason: 'stop', message: { content: '{}' } }] }; }
+    }
+    const exact = G.createRunner({ importer: async () => ({ Wllama: TokenizingWllama }) });
+    exact.setFile(file);
+    await exact.request([{ role: 'user', content: 'x'.repeat(24000) }]);
+    assert.equal(budget, 8192 - 6000 - 32, 'fits by the real count although the estimate would refuse it');
+  }
   // Same file: no reload. Different file: unload and reload.
   await runner.request([{ role: 'user', content: 'y' }]);
   assert.equal(calls.filter(c => c[0] === 'load').length, 1);
