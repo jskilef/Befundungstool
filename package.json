@@ -18,6 +18,7 @@
     "desktop:setup": "node node_modules/electron/install.js",
     "desktop": "node scripts/build.cjs && electron .",
     "desktop:build": "node scripts/build.cjs && electron-builder --publish never",
+    "desktop:start-check": "node scripts/build.cjs && node scripts/desktop-start-check.cjs",
     "test:desktop": "node scripts/test.cjs desktop"
   },
   "devDependencies": {

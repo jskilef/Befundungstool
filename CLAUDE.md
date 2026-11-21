@@ -22,6 +22,7 @@ npm run desktop:setup      # once: Electron binary (npm install --ignore-scripts
 npm run desktop            # build + Electron window (desktop/main.cjs)
 npm run desktop:build      # dist/desktop/: packages for this OS (Windows portable exe, macOS dmg arm64+x64, Linux deb + AppImage); unsigned
 npm run test:desktop       # tests/desktop only; npm test skips the group without the Electron binary
+npm run desktop:start-check  # N real starts without Playwright must each reach ready (CI guard for startup hangs; Playwright attach retries in tests/helpers/desktop.cjs)
 ```
 
 Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Report Studio, matching `@playwright/test` 1.63.0); `scripts/test.cjs` sets `PLAYWRIGHT_BROWSERS_PATH` automatically. `BT_CHROMIUM_PATH` overrides the Chromium executable.

@@ -94,6 +94,7 @@ npm run desktop:setup         # once: download the Electron binary (skipped by -
 npm run desktop               # build + desktop window
 npm run desktop:build         # dist/desktop/: packages for this system (exe, dmg, or deb + AppImage)
 npm run test:desktop          # desktop checks only (Playwright drives Electron)
+npm run desktop:start-check   # start the desktop app 10 times without Playwright; each start must reach "ready"
 ```
 
 Browser checks use Chromium from `.playwright-browsers/` when present, otherwise from `npx playwright install chromium`. Desktop checks run as part of `npm test` once the Electron binary is installed; without it they are skipped with a note. All tests use synthetic reports, mocked providers and a synthetic in-browser runtime; they do not evaluate model quality or clinical accuracy.

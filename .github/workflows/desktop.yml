@@ -49,16 +49,13 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Engine checks
         run: node scripts/test.cjs engine
-      # TEMPORARY diagnosis of intermittent Linux startup hangs (remove once explained): 15 starts each
-      # with the default GPU switches, with --safe-gpu, and inside a real D-Bus session.
-      - name: Start check (Linux diagnosis)
+      # Real startup hangs, independent of Playwright: 10 starts must each reach "ready".
+      - name: Start check
+        if: runner.os != 'Linux'
+        run: npm run desktop:start-check -- 10
+      - name: Start check (virtual display)
         if: runner.os == 'Linux'
-        continue-on-error: true
-        run: |
-          npm run build
-          xvfb-run -a node scripts/desktop-start-check.cjs 15 || true
-          xvfb-run -a node scripts/desktop-start-check.cjs 15 --safe-gpu || true
-          command -v dbus-run-session && xvfb-run -a dbus-run-session -- node scripts/desktop-start-check.cjs 15 || true
+        run: xvfb-run -a npm run desktop:start-check -- 10
       - name: Desktop checks
         if: runner.os != 'Linux'
         run: node scripts/test.cjs desktop
