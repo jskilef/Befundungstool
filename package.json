@@ -10,9 +10,12 @@
     "release": "node scripts/release.cjs",
     "test": "node scripts/test.cjs",
     "test:engine": "node scripts/test.cjs engine",
-    "test:ui": "node scripts/test.cjs ui"
+    "test:ui": "node scripts/test.cjs ui",
+    "desktop:setup": "node node_modules/electron/install.js"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
   }
 }
