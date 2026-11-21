@@ -16,7 +16,8 @@ export const env = { backends: { onnx: { wasm: {} } } };
 export async function pipeline(task, model, options) {
   options.progress_callback && options.progress_callback({ status: 'progress', progress: 100 });
   const asr = async (audio, settings) => {
-    fetch('https://record.test/?' + encodeURIComponent(JSON.stringify({ task, model, revision: options.revision, device: options.device, dtype: options.dtype, settings, seconds: audio.length / 16000 }))).catch(() => {});
+    // Awaited, so the test can hold a transcription open by delaying this response.
+    await fetch('https://record.test/?' + encodeURIComponent(JSON.stringify({ task, model, revision: options.revision, device: options.device, dtype: options.dtype, settings, seconds: audio.length / 16000 }))).catch(() => {});
     return { text: ' Kein Erguss. Neuer Absatz. herz normal groß. [Musik]' };
   };
   asr.dispose = async () => {};
@@ -48,12 +49,16 @@ function wav(file, seconds, speech) {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.BT_CHROMIUM_PATH || undefined,
       args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-audio-capture=' + audioFile] });
     const context = await browser.newContext();
-    const external = [], calls = [];
-    await context.route('**/*', route => {
+    const external = [], calls = [], hold = { promise: null };
+    await context.route('**/*', async route => {
       const url = route.request().url();
       if (url.startsWith('https://befundungstool.test/')) return route.fulfill({ contentType: 'text/html', body: html });
       if (url === RUNTIME) { external.push(url); return route.fulfill({ contentType: 'application/javascript', headers: { 'Access-Control-Allow-Origin': '*' }, body: fakeRuntime }); }
-      if (url.startsWith('https://record.test/')) { calls.push(JSON.parse(decodeURIComponent(url.split('?')[1]))); return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } }); }
+      if (url.startsWith('https://record.test/')) {
+        calls.push(JSON.parse(decodeURIComponent(url.split('?')[1])));
+        if (hold.promise) await hold.promise;
+        return route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*' } }).catch(() => {});   // worker may be gone
+      }
       external.push(url);
       return route.abort();
     });
@@ -62,12 +67,12 @@ function wav(file, seconds, speech) {
     await page.goto('https://befundungstool.test/');
     const status = () => page.locator('#speechStatus').textContent();
     const waitStatus = text => page.waitForFunction(t => document.querySelector('#speechStatus').textContent.startsWith(t), text);
-    return { browser, page, external, calls, status, waitStatus };
+    return { browser, page, external, calls, hold, status, waitStatus };
   }
 
   // ---- Speech-like audio ----------------------------------------------------
   {
-    const { browser, page, external, calls, status, waitStatus } = await open(speechFile);
+    const { browser, page, external, calls, hold, status, waitStatus } = await open(speechFile);
     try {
       // Nothing is fetched and no microphone is used until a dictation model is chosen.
       assert(await page.locator('#speechRecord').isVisible());
@@ -151,6 +156,66 @@ function wav(file, seconds, speech) {
       assert.equal(await status(), 'Diktat abgebrochen.');
       assert.equal(calls.length, before);
 
+      // "Neuer Befund" ends the dictation, so nothing dictated for one report reaches the next.
+      const newReport = async answer => {
+        let asked = false;
+        page.once('dialog', d => { asked = true; answer === 'accept' ? d.accept() : d.dismiss(); });
+        await page.locator('#new').click();
+        return asked;
+      };
+      const pendingCard = page.locator('.speech-pending');
+      // (a) A pending transcript counts as unsaved work even when the report is empty.
+      await page.locator('#findings').fill('');
+      await page.locator('#speechRecord').click();
+      await waitStatus('Aufnahme');
+      await page.waitForTimeout(1200);
+      await page.locator('#speechRecord').click();
+      await waitStatus('Transkript prüfen');
+      assert(await newReport('dismiss'), 'asks before a new report while a transcript is pending');
+      assert.equal(await pendingCard.count(), 1, 'declined: transcript kept');
+      assert(await newReport('accept'));
+      assert.equal(await pendingCard.count(), 0, 'pending transcript discarded with the old report');
+      assert.equal(await status(), '');
+      assert.equal(await page.inputValue('#findings'), '');
+      // (b) A running recording is cancelled, not transcribed into the new report.
+      const beforeRecording = calls.length;
+      await page.locator('#findings').focus();
+      await page.locator('#speechRecord').click();
+      await waitStatus('Aufnahme');
+      assert(await newReport('accept'), 'asks before a new report while recording');
+      assert.equal(await page.locator('#speechRecord').getAttribute('aria-pressed'), 'false', 'recording stopped');
+      assert(await page.locator('#speechCancel').isHidden());
+      await page.waitForTimeout(1500);
+      assert.equal(calls.length, beforeRecording, 'cancelled recording never transcribed');
+      assert.equal(await pendingCard.count(), 0);
+      // (c) A transcription that finishes after "Neuer Befund" is dropped.
+      let release;
+      hold.promise = new Promise(resolve => { release = resolve; });
+      const beforeHeld = calls.length;
+      await page.locator('#findings').focus();
+      await page.locator('#speechRecord').click();
+      await waitStatus('Aufnahme');
+      await page.waitForTimeout(1200);
+      await page.locator('#speechRecord').click();
+      await page.waitForFunction(() => document.querySelector('#speechRecord').disabled);
+      for (let i = 0; i < 50 && calls.length === beforeHeld; i++) await page.waitForTimeout(100);
+      assert.equal(calls.length, beforeHeld + 1, 'transcription under way');
+      assert(await newReport('accept'), 'asks before a new report while transcribing');
+      hold.promise = null;
+      release();
+      await page.waitForTimeout(800);
+      assert.equal(await pendingCard.count(), 0, 'late transcript not shown for the new report');
+      assert.equal(await page.locator('#speechRecord').isDisabled(), false, 'ready to dictate again');
+      assert.equal(await page.inputValue('#findings'), '');
+      // Dictation still works afterwards.
+      await page.locator('#findings').focus();
+      await page.locator('#speechRecord').click();
+      await waitStatus('Aufnahme');
+      await page.waitForTimeout(1200);
+      await page.locator('#speechRecord').click();
+      await waitStatus('Transkript prüfen');
+      await page.locator('#speechDiscard').click();
+
       // English interface translates the controls.
       await ui.setSetting(page, '#language', 'en');
       assert.equal(await page.locator('#speechRecord').textContent(), 'Dictate');
@@ -192,5 +257,5 @@ function wav(file, seconds, speech) {
       await browser.close();
     }
   }
-  console.log('Diktat UI: kein Netz ohne Modell, Aufnahme (Fake-Mikrofon), Transkript ausstehend und bearbeitbar, Einfügen am Cursor mit Rückgängig, Verwerfen, Formatbefehle an/aus, Abbrechen, Stille ohne Modellaufruf, Speicherung, Funktionsschalter bestanden.');
+  console.log('Diktat UI: kein Netz ohne Modell, Aufnahme (Fake-Mikrofon), Transkript ausstehend und bearbeitbar, Einfügen am Cursor mit Rückgängig, Verwerfen, Formatbefehle an/aus, Abbrechen, Neuer Befund beendet Diktat (ausstehend, Aufnahme, Transkription), Stille ohne Modellaufruf, Speicherung, Funktionsschalter bestanden.');
 })().catch(e => { console.error(e); process.exit(1); });
