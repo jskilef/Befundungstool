@@ -87,13 +87,24 @@ function harden(contents) {
 }
 
 function configureSession(ses) {
-  ses.setSpellCheckerEnabled(false);
+  disableSpellchecker(ses);
   ses.setPermissionRequestHandler((contents, permission, callback, details) => {
     callback(policy.allowPermission(permission, { origin: ORIGIN, requestingUrl: details.requestingUrl, mediaTypes: details.mediaTypes }));
   });
   ses.setPermissionCheckHandler((contents, permission, requestingOrigin, details) =>
     policy.allowPermissionCheck(permission, { origin: ORIGIN, requestingUrl: details.requestingUrl || requestingOrigin, mediaType: details.mediaType }));
   ses.setDevicePermissionHandler(() => false);
+}
+
+// On Linux Chromium downloads Hunspell dictionaries from Google's CDN as soon as a session has spellcheck
+// languages (seen in CI: redirector.gvt1.com). Called on session creation, before any page loads; without
+// languages nothing is fetched, and the download URL points at a closed loopback port as a second guard.
+// Windows and macOS use the system spellchecker (no download); the calls are harmless there.
+function disableSpellchecker(ses) {
+  ses.setSpellCheckerEnabled(false);
+  if (process.platform === 'darwin') return;
+  ses.setSpellCheckerLanguages([]);
+  ses.setSpellCheckerDictionaryDownloadURL('http://127.0.0.1:9/');
 }
 
 // ---- Diagnostics ------------------------------------------------------------------------------------
@@ -216,6 +227,7 @@ function main() {
     mainWindow.show();
     mainWindow.focus();
   });
+  app.on('session-created', disableSpellchecker);
   app.on('web-contents-created', (event, contents) => harden(contents));
   // macOS convention: closing the window keeps the app in the Dock; clicking the Dock icon reopens it.
   app.on('window-all-closed', () => { if (!MAC) app.quit(); });
