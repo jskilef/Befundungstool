@@ -55,6 +55,12 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     assert.equal(await copy(), expected);
     assert.equal(await exported(), expected);
 
+    // Empty sections are left out (heading included); whitespace-only counts as empty.
+    await page.locator('#technique').fill('');
+    await page.locator('#comparison').fill('  \n ');
+    assert.equal(await copy(), [0, 3].map(i => labels[i] + '\n' + texts[i]).join('\n\n\n\n'));
+    assert(!(await exported()).includes(labels[1]), 'export too');
+
     // Custom template fields keep exactly the name the user gave them.
     await page.locator('#addTemplate').click();
     await page.locator('#templateName').fill('Eigene');

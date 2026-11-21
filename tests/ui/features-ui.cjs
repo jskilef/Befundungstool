@@ -58,7 +58,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     assert.equal(await page.inputValue('#impression'), 'Kein Pleuraerguss oder Pneumothorax.');
     // Copy/export without the study/patient/date header.
     const plain = await exported();
-    assert.match(plain, /^KLINISCHE ANGABEN\n/);
+    assert.match(plain, /^BEFUND\nSynthetischer Befund\.\n\nBEURTEILUNG\n/, 'empty sections are left out');
     assert(!plain.includes('Synthetische Referenz') && !plain.includes('RADIOLOGISCHER BEFUND'));
 
     // Hidden tools keep their data; settings persist across reloads.
