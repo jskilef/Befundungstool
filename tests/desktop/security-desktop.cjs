@@ -34,8 +34,15 @@ const { launchDesktop } = require('../helpers/desktop.cjs');
     // "Befund kopieren" (write-only clipboard) still works.
     await page.locator('#findings').fill('Synthetischer Befund zum Kopieren.');
     await page.locator('#copy').click();
-    await page.waitForFunction(() => document.body.textContent.includes('kopiert'));
-    assert.match(await app.evaluate(({ clipboard }) => clipboard.readText()), /Synthetischer Befund zum Kopieren\./);
+    // The notification appears once the copy has finished ("kopiert" alone also occurs in hidden page text).
+    await page.waitForFunction(() => { const toast = document.querySelector('#toast'); return toast.style.display === 'block' && /kopiert/.test(toast.textContent); });
+    // X11 (Linux CI) publishes clipboard content asynchronously: allow a short delay before reading it back.
+    let copied = '';
+    for (let i = 0; i < 30 && !/Synthetischer Befund zum Kopieren\./.test(copied); i++) {
+      copied = await app.evaluate(({ clipboard }) => clipboard.readText());
+      if (!copied) await page.waitForTimeout(100);
+    }
+    assert.match(copied, /Synthetischer Befund zum Kopieren\./);
 
     // No DevTools without --devtools; the menu has no Reload (would discard text) and no Edit roles (app undo).
     const devtools = await app.evaluate(({ BrowserWindow }) => { const contents = BrowserWindow.getAllWindows()[0].webContents; contents.openDevTools(); return contents.isDevToolsOpened(); });
