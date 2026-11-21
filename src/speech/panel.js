@@ -83,6 +83,7 @@
     let phase = 'idle';            // idle | starting | recording | transcribing
     let target = null;             // { id } chosen when recording starts
     let pending = null;            // { id, card, text }
+    let session = 0;               // bumped by clear(): results of an older dictation are dropped
     let controller = null, statusMessage = { key: '', suffix: '', error: false }, modelMessage = { key: '', suffix: '' };
 
     // ---- Toolbar -------------------------------------------------------------
@@ -198,12 +199,15 @@
       target = { id: field.id };
       phase = 'starting';
       render();
+      const mine = session;
       try {
         await capture.start();
+        if (mine !== session) return;
         phase = 'recording';
         setStatus('Recording', false, ' · ' + t('max. 30 s'));
         render(0);
       } catch (error) {
+        if (mine !== session) return;
         phase = 'idle';
         render();
         if (error?.name !== 'AbortError') setStatus(micError(error), true);
@@ -215,26 +219,33 @@
       phase = 'transcribing';
       render();
       let samples = null;
+      const mine = session;
       try {
         samples = await capture.stop();
+        if (mine !== session) return;
         if (!SpeechText.hasSpeech(samples)) { samples.fill(0); phase = 'idle'; render(); setStatus('No speech detected. Nothing inserted.'); return; }
         controller = new AbortController();
         const { text, device } = await runner.transcribe(samples, { preset: state.model, language: state.language, signal: controller.signal });
         samples = null;
+        if (mine !== session) return;
         setModelStatus('Dictation model ready.', device === 'webgpu' ? ' (WebGPU)' : ' (CPU)');
         const clean = SpeechText.applyCommands(SpeechText.cleanTranscript(text), state.commands);
         if (!clean.trim()) { setStatus('No speech detected. Nothing inserted.'); return; }
         showPending(target.id, clean);
         setStatus(limit ? 'Recording stopped at 30 seconds.' : 'Check the transcript, then insert it.', false, limit ? ' ' + t('Check the transcript, then insert it.') : '');
       } catch (error) {
+        if (mine !== session) return;
         if (error?.name === 'AbortError') setStatus('Dictation cancelled.');
         else setStatus(String(error?.message || 'Transcription failed. Try again.'), true);
       } finally {
-        samples?.fill?.(0);
-        controller = null;
-        phase = 'idle';
-        render();
-        syncSettings();
+        // Samples handed to the worker are transferred (detached, length 0); nothing left to wipe then.
+        if (samples?.buffer?.byteLength) samples.fill(0);
+        if (mine === session) {
+          controller = null;
+          phase = 'idle';
+          render();
+          syncSettings();
+        }
       }
     }
 
@@ -281,13 +292,20 @@
       setModelStatus(modelMessage.key, modelMessage.suffix);
       render(capture.seconds);
     }
-    // Feature switched off: stop everything and drop pending text (the report itself is untouched).
-    async function disable() {
-      if (phase === 'recording') await capture.cancel();
+    // New report or feature switched off: stop the recording or transcription and drop pending text,
+    // so nothing dictated for one report can reach the next (the report itself is untouched).
+    // Late results of the cleared dictation are ignored through the session counter.
+    async function clear() {
+      const wasCapturing = phase === 'starting' || phase === 'recording';
+      const hadWork = phase !== 'idle' || !!pending;
+      session++;
       controller?.abort();
+      controller = null;
       discard(false);
       phase = 'idle';
       render();
+      if (hadWork) setStatus('');
+      if (wasCapturing) await capture.cancel();
     }
 
     render();
@@ -295,8 +313,10 @@
     return {
       state: () => ({ ...state }),
       setState(next) { if (validState(next)) { state = { ...next }; syncSettings(); if (state.model !== 'none') bridge.enableIsolation(); } },
-      applyLanguage, disable,
-      get busy() { return phase !== 'idle'; }
+      applyLanguage, clear, disable: clear,
+      get busy() { return phase !== 'idle'; },
+      // A recording, transcription or transcript not yet inserted.
+      get active() { return phase !== 'idle' || !!pending; }
     };
   }
 
