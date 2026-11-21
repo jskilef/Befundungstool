@@ -11,17 +11,23 @@ A standalone radiology report editor that runs in the browser. German by default
 
 Without an AI provider selected, the app makes no network requests.
 
-### Desktop app (Windows)
+### Desktop app (Windows, macOS, Linux)
 
 Optional. On some PCs the installed Chrome or Edge blocks WebGPU (IT policies such as `HardwareAccelerationModeEnabled`, or Chromium's GPU blocklist), so browser models and offline dictation fall back to slow CPU paths or do not run. The desktop app brings its own Chromium (Electron), which is not affected by those browser settings. It turns on WebGPU wherever the hardware supports it, prefers the dedicated GPU on laptops, and is cross-origin isolated for multi-threaded CPU inference.
 
-- **Build:** `npm install --ignore-scripts`, then `npm run desktop:setup` (downloads the Electron binary once), then `npm run desktop:build`. Result: `dist/desktop/Befundungstool-<version>-portable.exe`, a single file that needs no installation and no admin rights. `npm run release:desktop` puts it into `dist/release/` as `befundungstool-v<version>-windows-portable.exe` with its SHA-256 in `SHA256SUMS.txt`.
+| System | Package | Note on first start |
+| --- | --- | --- |
+| Windows 10/11 (x64) | `befundungstool-v<version>-windows-portable.exe`: single file, no installation, no admin rights | Not code-signed: SmartScreen may show "Der Computer wurde durch Windows geschützt"; choose *Weitere Informationen → Trotzdem ausführen*. Managed PCs may block unsigned programs; ask your IT department. |
+| macOS (Apple Silicon `arm64`, Intel `x64`) | `befundungstool-v<version>-macos-<arch>.dmg`: drag the app to *Programme* | Not notarized by Apple: Control-click the app → *Öffnen* → *Öffnen*. If macOS reports the app as damaged, run `xattr -dr com.apple.quarantine /Applications/Befundungstool.app` once. macOS asks for microphone access the first time you dictate. |
+| Linux x64 (Debian/Ubuntu) | `befundungstool-v<version>-linux-<arch>.deb`: `sudo apt install ./befundungstool-….deb` | Recommended on Linux: the package sets up Chromium's sandbox, including the AppArmor profile Ubuntu 24.04+ needs. |
+| Linux x64 (other distributions) | `befundungstool-v<version>-linux-<arch>.AppImage`: `chmod +x`, then run | Ubuntu 23.10+ blocks the sandbox an AppImage needs; use the `.deb` there. |
+
+- **Build:** packages are built on the system they are for. `npm install --ignore-scripts`, then `npm run desktop:setup` (downloads the Electron binary for tests and `npm run desktop`), then `npm run desktop:build` (packages in `dist/desktop/`) or `npm run release:desktop` (adds them to `dist/release/` with their SHA-256 in `SHA256SUMS.txt`). The GitHub workflow *Desktop app* (`.github/workflows/desktop.yml`) runs the checks and builds on Windows, macOS and Linux and collects everything into one release folder with one `SHA256SUMS.txt`.
 - **Start from the repository:** `npm run desktop` (builds the app, then opens the window).
-- **Same app inside:** the window runs the local launcher in-process on the fixed address `http://127.0.0.1:8790` (the browser launcher keeps 8788). AI requests go through its `/api` proxy, using the Windows proxy settings and certificate store. Only one window runs at a time; starting it again brings the open window to the front. If another program uses port 8790, the app shows an error and quits instead of switching ports, because settings, drafts, the encrypted key vault and downloaded models belong to that address.
-- **GPU status:** *Hilfe → GPU-Status* (or start with `--gpu-info`) shows whether WebGPU is available, the adapter (vendor, architecture, features, limits), cross-origin isolation, CPU threads and Chromium's GPU feature status. *Details kopieren* copies everything as JSON; *Chromium-GPU-Bericht* opens `chrome://gpu`.
-- **Graphics problems:** start with `--safe-gpu` (for example a shortcut to `Befundungstool-…-portable.exe --safe-gpu`). This keeps Chromium's GPU defaults and the blocklist, so WebGPU may be unavailable. `--disable-gpu` turns GPU acceleration off completely.
-- **SmartScreen:** the build is not code-signed. On first start Windows may show "Der Computer wurde durch Windows geschützt"; choose *Weitere Informationen → Trotzdem ausführen*. Managed PCs may block unsigned programs entirely; ask your IT department.
-- **Data stays on this PC:** everything the browser version keeps in browser storage is kept in `%APPDATA%\Befundungstool`. The app has no updater and no crash reporting and makes no network requests until you choose an AI provider or a model. The microphone is the only device it can use, and only for offline dictation.
+- **Same app inside:** the window runs the local launcher in-process on the fixed address `http://127.0.0.1:8790` (the browser launcher keeps 8788). AI requests go through its `/api` proxy, using the system proxy settings and certificate store. Only one window runs at a time; starting it again brings the open window to the front. If another program uses port 8790, the app shows an error and quits instead of switching ports, because settings, drafts, the encrypted key vault and downloaded models belong to that address.
+- **GPU status:** *Hilfe → GPU-Status* (or start with `--gpu-info`) shows whether WebGPU is available, the adapter (vendor, architecture, features, limits), cross-origin isolation, CPU threads and Chromium's GPU feature status. *Details kopieren* copies everything as JSON; *Chromium-GPU-Bericht* opens `chrome://gpu`. WebGPU uses Direct3D 12 on Windows, Metal on macOS and Vulkan on Linux (the app turns Vulkan on there).
+- **Graphics problems:** start with `--safe-gpu` (Windows: a shortcut to the `.exe` with `--safe-gpu`; macOS: `open -a Befundungstool --args --safe-gpu`; Linux: `befundungstool --safe-gpu`). This keeps Chromium's GPU defaults and the blocklist, so WebGPU may be unavailable. `--disable-gpu` turns GPU acceleration off completely.
+- **Data stays on this computer:** everything the browser version keeps in browser storage is kept in `%APPDATA%\Befundungstool` (Windows), `~/Library/Application Support/Befundungstool` (macOS) or `~/.config/Befundungstool` (Linux). The app has no updater and no crash reporting and makes no network requests until you choose an AI provider or a model. The microphone is the only device it can use, and only for offline dictation.
 
 ## Features
 
@@ -74,10 +80,10 @@ npm install --ignore-scripts
 npm test                      # build + all checks (Node rule checks and Playwright browser checks)
 node scripts/test.cjs ui ai   # one group, filtered by file name
 npm run release               # dist/release: ZIP, standalone HTML, SHA256SUMS.txt
-npm run release:desktop       # the same plus a freshly built befundungstool-v<version>-windows-portable.exe
+npm run release:desktop       # the same plus freshly built desktop packages for this system
 npm run desktop:setup         # once: download the Electron binary (skipped by --ignore-scripts)
 npm run desktop               # build + desktop window
-npm run desktop:build         # dist/desktop/Befundungstool-<version>-portable.exe
+npm run desktop:build         # dist/desktop/: packages for this system (exe, dmg, or deb + AppImage)
 npm run test:desktop          # desktop checks only (Playwright drives Electron)
 ```
 
