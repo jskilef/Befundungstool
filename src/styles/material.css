@@ -249,6 +249,7 @@ html[data-off~=dictation] :is(.dictation-action,.dictation-status){display:none!
 html[data-off~=meta] .meta{display:none!important}
 html[data-off~=ai] :is(#aiChipHost,#aiActionsHost,#aiBannerHost,.ai-inline,#tabNotes,[data-sheet-tab=ai]){display:none!important}
 html[data-off~=sidebar] .side{display:none!important}
+html[data-off~=speech] :is(.speech-host,.speech-inline,.speech-settings){display:none!important}
 html[data-side-hide~=macros] #macroPanel,html[data-side-hide~=shortcuts] #shortcutsPanel,html[data-side-hide~=notes] #tabNotes,html[data-side-single=true] .side-tabs{display:none!important}
 html[data-side-empty=true] .side{display:none!important}
 @media (min-width:901px){html[data-side-empty=true] main{grid-template-columns:minmax(0,1fr)!important;max-width:1100px}}
@@ -285,3 +286,20 @@ html[data-side-empty=true] .side{display:none!important}
 :root[data-palette][data-theme] .ai-import-list{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:16px 0;font-size:14px;line-height:20px}
 :root[data-palette][data-theme] .ai-import-list dt{color:var(--md-sys-color-on-surface-variant);font-weight:500}
 :root[data-palette][data-theme] .ai-import-list dd{margin:0;color:var(--md-sys-color-on-surface);white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Offline dictation: record button in the toolbar, pending transcript under its section, settings. */
+:root[data-palette][data-theme] .speech-control{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+:root[data-palette][data-theme] .speech-record{display:inline-flex;align-items:center;gap:6px}
+:root[data-palette][data-theme] .speech-record.speech-recording{background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container);border-color:var(--md-sys-color-error)}
+:root[data-palette][data-theme] .speech-record.speech-recording svg{animation:speech-pulse 1.2s ease-in-out infinite}
+@keyframes speech-pulse{50%{opacity:.35}}
+:root[data-palette][data-theme] .speech-status{font-size:12px;line-height:16px;color:var(--md-sys-color-on-surface-variant);max-width:360px}
+:root[data-palette][data-theme] .speech-status.speech-error{color:var(--md-sys-color-error)}
+:root[data-palette][data-theme] .speech-inline:empty{display:none}
+:root[data-palette][data-theme] .speech-inline{display:grid;gap:8px;margin-top:8px}
+:root[data-palette][data-theme] .speech-pending{padding:12px 16px;border:1px solid var(--md-sys-color-tertiary);border-radius:var(--md-sys-shape-corner-medium);background:color-mix(in srgb,var(--md-sys-color-tertiary-container) 30%,var(--md-sys-color-surface-container-low))}
+:root[data-palette][data-theme] .speech-label{font-size:12px;line-height:16px;font-weight:500;letter-spacing:.5px;color:var(--md-sys-color-tertiary)}
+:root[data-palette][data-theme] .speech-text{width:100%;margin:8px 0;font-size:16px;line-height:24px}
+:root[data-palette][data-theme] .speech-pending-actions,:root[data-palette][data-theme] .speech-model-actions{display:flex;gap:8px;flex-wrap:wrap}
+:root[data-palette][data-theme] .speech-settings{display:grid;gap:12px}
+:root[data-palette][data-theme] .speech-settings label:not(.switch-row){display:grid;gap:4px}

@@ -1,6 +1,26 @@
 # Offline dictation: comparison and proposal (2026-11-20)
 
-Status: **proposal, not implemented.** Waiting for approval. Today Befundungstool supports only Fluency Direct (`src/dictation/compat.js`, a compatibility mode for an external dictation client).
+Status: **approved 2026-11-21 ("as proposed") and implemented** as option A (`src/speech/`). Formatting commands default on; offline dictation has its own feature switch `speech`; option C stays for later. Before that, Befundungstool supported only Fluency Direct (`src/dictation/compat.js`, a compatibility mode for an external dictation client).
+
+## Measurements (2026-11-21, this PC: 12 CPU threads, Chromium 1243)
+
+Synthetic German speech from Windows text-to-speech ("Microsoft Hedda", 16 kHz). Three recordings of 11.6 s, 14.2 s and 27.7 s. Real Transformers.js 3.8.1 and real model downloads. Times are per recording after the model has loaded.
+
+| Model, device | Time per recording | First load (download) | Notes on the transcript |
+| --- | --- | --- | --- |
+| small, 8-bit, CPU, cross-origin isolated (8 threads) | 2.9–4.6 s | 13 s | Clear errors in medical terms: "Pluräagus", "Neumotorax", "Züste", "Lymphadenopathy" |
+| small, 8-bit, CPU, single thread (as from `file://`) | 8.9–11.5 s | — | Same as above |
+| large-v3-turbo, q4f16, WebGPU | 2.5–3.4 s | 20 s | "Hypodense Läsion", "Zyste", "Lymphadenopathie", "Lendenwirbelsäule", "Thorax" correct; "Pleuraerguss" and "Pneumothorax" still wrong (partly the TTS voice) |
+| large-v3-turbo, 8-bit, CPU (8 threads) | 9.6–11.1 s | 52 s | Same quality as WebGPU |
+
+- **Silence (5 s of zeros):** small returned "[Musik]", turbo returned "Vielen Dank.". This confirms the need for the silence check and the hallucination filter.
+- **What works from `file://`:** microphone, a 16 kHz `AudioContext`, WebGPU and the Cache API. An AudioWorklet module from a Blob URL fails there, so the app loads it from a `data:` URL, which works in all three modes.
+- **End-to-end in the built app** (fake microphone playing the TTS file):
+  - small: 17 s for the first dictation including the download; 2.9 s afterwards.
+  - turbo on WebGPU: 31 s for the first dictation including the download; 2.3–2.7 s afterwards.
+  - "Neuer Absatz" became a paragraph break and "neue Zeile" a line break.
+  - Only `cdn.jsdelivr.net` and Hugging Face were contacted.
+- **Not measured:** real voices, real microphones, and other hardware. The headless test shell has no WebGPU shader compiler (`dxil.dll`); the full Chromium build does.
 
 Sources:
 - Model and runtime facts come from the Hugging Face model pages, the whisper.cpp repository and the Transformers.js docs, read 2026-11-20.

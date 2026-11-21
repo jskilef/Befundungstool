@@ -71,7 +71,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
 
     // The configuration file carries the choices; a fresh browser restores them.
     const saved = await saveConfiguration(page);
-    assert.deepEqual(saved.data.settings.features, { builders: true, dictation: false, meta: false, ai: false, sidebar: false });
+    assert.deepEqual(saved.data.settings.features, { builders: true, dictation: false, meta: false, ai: false, sidebar: false, speech: true });
     const fresh = await (await browser.newContext()).newPage();
     fresh.on('pageerror', e => errors.push(e.message));
     await fresh.route('https://befundungstool.test/**', r => r.fulfill({ contentType: 'text/html', body: html }));

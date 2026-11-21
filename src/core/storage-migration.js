@@ -65,8 +65,10 @@
 
   // True when the remembered AI provider runs in the browser (only then is isolation useful).
   const ON_DEVICE = ['webllm', 'wasm', 'gguf'];
+  // Offline dictation runs Whisper in the browser too, so a chosen dictation model counts as well.
   function onDeviceSelected(storage) {
-    try { return ON_DEVICE.includes(JSON.parse(storage.getItem('befundungstool-ai-v1'))?.provider); } catch { return false; }
+    try { if (ON_DEVICE.includes(JSON.parse(storage.getItem('befundungstool-ai-v1'))?.provider)) return true; } catch { /* unreadable */ }
+    try { const model = JSON.parse(storage.getItem('befundungstool-preferences-v1'))?.speech?.model; return !!model && model !== 'none'; } catch { return false; }
   }
 
   return { MARKER, KEYS, migrate, onDeviceSelected };

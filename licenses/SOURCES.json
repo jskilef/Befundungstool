@@ -89,6 +89,11 @@
       "file": "licenses/llama.cpp-LICENSE.txt",
       "url": "https://raw.githubusercontent.com/ggml-org/llama.cpp/master/LICENSE",
       "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "file": "licenses/whisper-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/openai/whisper/86098128c0b4f24f0e2aa2994de830614b474227/LICENSE",
+      "sha256": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d"
     }
   ]
 }

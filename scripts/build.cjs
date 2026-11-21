@@ -47,6 +47,7 @@ const slots = {
   ]),
   SETTINGS_SCRIPTS: () => scripts(['src/settings/config.js', 'src/settings/crypto.js', 'src/settings/vault.js', 'src/settings/unified.js']),
   AI_SCRIPTS: () => scripts(['src/ai/diff.js', 'src/ai/providers.js', 'src/ai/contract.js', 'src/ai/local.js', 'src/ai/gguf.js', 'src/ai/panel.js']),
+  SPEECH_SCRIPTS: () => scripts(['src/speech/text.js', 'src/speech/capture.js', 'src/speech/whisper.js', 'src/speech/panel.js']),
   CORE_SCRIPTS: () => read('src/core/editor.js').replace(/\n$/, '')
 };
 

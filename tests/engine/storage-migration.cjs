@@ -39,4 +39,7 @@ assert.equal(M.onDeviceSelected(storage()), false);
 assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': '{"provider":"openai"}' })), false);
 assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': '{"provider":"gguf"}' })), true);
 assert.equal(M.onDeviceSelected(storage({ 'befundungstool-ai-v1': 'not json' })), false);
+// A chosen offline dictation model also runs in the browser.
+assert.equal(M.onDeviceSelected(storage({ 'befundungstool-preferences-v1': '{"speech":{"model":"whisper-small","language":"de","commands":true}}' })), true);
+assert.equal(M.onDeviceSelected(storage({ 'befundungstool-preferences-v1': '{"speech":{"model":"none","language":"de","commands":true}}' })), false);
 console.log('Speichermigration: einmalige Übernahme, radnote-Daten unverändert, keine Wiederherstellung gelöschter Daten bestanden.');
