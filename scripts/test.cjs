@@ -1,16 +1,17 @@
 'use strict';
-// Build, then run every test script. Usage: node scripts/test.cjs [engine|ui] [name-filter]
+// Build, then run every test script. Usage: node scripts/test.cjs [engine|ui|desktop|all] [name-filter]
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
 const [group, filter] = process.argv.slice(2);
-if (group !== undefined && !['engine', 'ui', 'all'].includes(group)) {
-  console.error(`Unknown test group: ${group} (use engine, ui or all)`);
+const ALL = ['engine', 'ui', 'desktop'];
+if (group !== undefined && !ALL.includes(group) && group !== 'all') {
+  console.error(`Unknown test group: ${group} (use engine, ui, desktop or all)`);
   process.exit(2);
 }
-const groups = group === 'engine' || group === 'ui' ? [group] : ['engine', 'ui'];
+const groups = ALL.includes(group) ? [group] : ALL;
 const TIMEOUT_MS = 300000; // per test script: a hung browser test fails instead of blocking the run
 
 // Reuse locally copied Playwright browsers when present (avoids a download).
@@ -20,11 +21,17 @@ if (!env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(browsers)) env.PLAYWRIGHT_BRO
 
 require('./build.cjs').build();
 
-let passed = 0;
+let passed = 0, skipped = 0;
 const failed = [];
 for (const name of groups) {
   const dir = path.join(root, 'tests', name);
   if (!fs.existsSync(dir)) continue;
+  // The desktop app needs the Electron binary, which `npm install --ignore-scripts` does not download.
+  if (name === 'desktop' && !require('../tests/helpers/desktop.cjs').electronPath()) {
+    skipped++;
+    console.log('SKIP desktop: Electron binary not installed. Run "npm run desktop:setup" to download it, then "npm run test:desktop".');
+    continue;
+  }
   for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.cjs')).sort()) {
     if (filter && !file.includes(filter)) continue;
     const started = Date.now();
@@ -39,9 +46,9 @@ for (const name of groups) {
     }
   }
 }
-if (!passed && !failed.length) {
+if (!passed && !failed.length && !skipped) {
   console.error('No test scripts matched.');
   process.exit(1);
 }
-console.log(`\n${passed} passed, ${failed.length} failed${failed.length ? ': ' + failed.join(', ') : ''}`);
+console.log(`\n${passed} passed, ${failed.length} failed${skipped ? ' (desktop group skipped)' : ''}${failed.length ? ': ' + failed.join(', ') : ''}`);
 process.exit(failed.length ? 1 : 0);
