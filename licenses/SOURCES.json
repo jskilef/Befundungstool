@@ -94,6 +94,19 @@
       "file": "licenses/whisper-LICENSE.txt",
       "url": "https://raw.githubusercontent.com/openai/whisper/86098128c0b4f24f0e2aa2994de830614b474227/LICENSE",
       "sha256": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d"
+    },
+    {
+      "file": "licenses/electron-45.4.1-LICENSE.txt",
+      "url": "https://registry.npmjs.org/electron/-/electron-45.4.1.tgz (package/LICENSE)",
+      "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+    }
+  ],
+  "desktopBundled": [
+    {
+      "file": "LICENSES.chromium.html (next to Befundungstool.exe in desktop builds)",
+      "source": "electron-v45.4.1-win32-x64.zip (node_modules/electron/dist/LICENSES.chromium.html), copied unchanged by electron-builder 26.18.0",
+      "sha256": "7dac8267ac6da8d959cfe88f5f055b18a397f10230380b5329125e167bf5639b",
+      "retrievedOn": "2026-11-21"
     }
   ]
 }

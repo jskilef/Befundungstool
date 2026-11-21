@@ -52,6 +52,23 @@ They are development dependencies installed separately; their implementation
 and downloaded test browsers are not included in the release ZIP or standalone
 HTML. Installed packages retain their upstream license and notice files.
 
+## Desktop app (Electron, Chromium)
+
+The optional Windows desktop app (`npm run desktop:build`, not part of the release
+ZIP or the standalone HTML) bundles the Electron 45.4.1 runtime, which contains
+Chromium 156 and Node.js. It is built with `electron-builder` 26.18.0; both are
+development dependencies pinned through `package-lock.json`.
+
+| Component | Version / source | License and included text |
+| --- | --- | --- |
+| Electron, Electron contributors and GitHub Inc. | [`electron` 45.4.1](https://github.com/electron/electron/tree/v45.4.1) | MIT; [upstream text](licenses/electron-45.4.1-LICENSE.txt). The packaged app also carries it as `LICENSE.electron.txt` next to the executable. |
+| Chromium and its third-party components (including V8, Skia, Dawn, ANGLE, FFmpeg, ICU, SwiftShader) | As shipped in the Electron 45.4.1 Windows x64 distribution (Chromium 156.0.8078.100) | BSD-3-Clause for Chromium and many different licenses for its components. The complete collection, `LICENSES.chromium.html` from the Electron distribution, is bundled unchanged next to the executable in every desktop build (SHA-256 recorded in the [source inventory](licenses/SOURCES.json)). It is not copied into `licenses/` because the web release does not contain Chromium. |
+| Node.js (embedded in Electron) | Electron 45.4.1 | MIT and the third-party licenses included in Chromium's collection above. |
+| electron-builder and app-builder-lib | 26.18.0 | MIT. Build tool only. It downloads NSIS and 7-Zip from the electron-builder-binaries releases at build time; the portable `.exe` is an NSIS self-extracting launcher (NSIS: zlib/libpng license; its bundled plugins keep their own licenses). Re-review before distributing builds outside the team. |
+
+The desktop app adds no runtime npm packages: it contains the built app, the
+launcher, `desktop/*.cjs`, `package.json` and the license and notice documents.
+
 ## Optional model assets
 
 | Model selected in Befundungstool | License evidence | Inspected conversion / model revision |
