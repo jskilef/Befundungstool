@@ -1,9 +1,12 @@
 {
   "name": "befundungstool",
+  "productName": "Befundungstool",
   "version": "0.1.0",
   "private": true,
   "description": "Standalone radiology report editor with structured builders and optional AI review",
   "license": "MIT",
+  "author": "Befundungstool contributors",
+  "main": "desktop/main.cjs",
   "scripts": {
     "build": "node scripts/build.cjs",
     "start": "node scripts/build.cjs && node server/local-server.cjs",
@@ -11,11 +14,60 @@
     "test": "node scripts/test.cjs",
     "test:engine": "node scripts/test.cjs engine",
     "test:ui": "node scripts/test.cjs ui",
-    "desktop:setup": "node node_modules/electron/install.js"
+    "desktop:setup": "node node_modules/electron/install.js",
+    "desktop": "node scripts/build.cjs && electron .",
+    "desktop:build": "node scripts/build.cjs && electron-builder --win portable --publish never",
+    "test:desktop": "node scripts/test.cjs desktop"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "electron": "45.4.1",
     "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "befundungstool",
+    "productName": "Befundungstool",
+    "copyright": "Copyright (c) Befundungstool contributors, MIT License",
+    "directories": {
+      "output": "dist/desktop",
+      "buildResources": "desktop/build-resources"
+    },
+    "files": [
+      "dist/befundungstool.html",
+      "dist/manifest.webmanifest",
+      "dist/icons/*.png",
+      "server/local-server.cjs",
+      "desktop/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+      "CLINICAL_NOTICE.md",
+      "licenses/**/*"
+    ],
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "npmRebuild": false,
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "public/icons/icon-512.png"
+    },
+    "portable": {
+      "artifactName": "Befundungstool-${version}-portable.exe"
+    },
+    "nsis": {
+      "artifactName": "Befundungstool-${version}-setup.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
