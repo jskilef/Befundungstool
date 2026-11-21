@@ -27,4 +27,24 @@ for (const line of fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').tri
   assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(out, name))).digest('hex'), hash, name);
 }
 assert(files.get('befundungstool.html').toString().includes(`content="${version}"`));
-console.log('Release: ZIP-Rundlauf, Positivliste, Prüfsummen und Versionsabgleich bestanden.');
+const exeName = `befundungstool-v${version}-windows-portable.exe`;
+assert(!fs.existsSync(path.join(out, exeName)), 'no desktop exe without --desktop');
+
+// --desktop: the freshly built exe (synthetic stand-in for electron-builder here) is copied and checksummed.
+const fakeExe = path.join(out, 'synthetic-build.exe');
+fs.writeFileSync(fakeExe, Buffer.from('MZ synthetic portable exe'));
+const built = [];
+const desktop = R.release(out, { desktop: true, buildDesktop: v => { built.push(v); return fakeExe; } });
+assert.deepEqual(built, [version], 'desktop build runs once for this version');
+assert(desktop.outputs.includes(exeName));
+assert(fs.readFileSync(path.join(out, exeName)).equals(fs.readFileSync(fakeExe)));
+const sums = fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').trim().split('\n').map(line => line.split(/\s+/));
+assert.deepEqual(sums.map(([, name]) => name), [zipName, `befundungstool-v${version}.html`, exeName]);
+assert.equal(sums[2][0], crypto.createHash('sha256').update(fs.readFileSync(fakeExe)).digest('hex'));
+
+// A later release without --desktop removes the now outdated exe instead of leaving it unlisted.
+R.release(out);
+assert(!fs.existsSync(path.join(out, exeName)), 'stale exe removed');
+assert(!fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').includes('.exe'));
+fs.rmSync(out, { recursive: true, force: true });
+console.log('Release: ZIP-Rundlauf, Positivliste, Prüfsummen, Versionsabgleich und Desktop-Exe bestanden.');

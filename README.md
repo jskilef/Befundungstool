@@ -15,7 +15,7 @@ Without an AI provider selected, the app makes no network requests.
 
 Optional. On some PCs the installed Chrome or Edge blocks WebGPU (IT policies such as `HardwareAccelerationModeEnabled`, or Chromium's GPU blocklist), so browser models and offline dictation fall back to slow CPU paths or do not run. The desktop app brings its own Chromium (Electron), which is not affected by those browser settings. It turns on WebGPU wherever the hardware supports it, prefers the dedicated GPU on laptops, and is cross-origin isolated for multi-threaded CPU inference.
 
-- **Build:** `npm install --ignore-scripts`, then `npm run desktop:setup` (downloads the Electron binary once), then `npm run desktop:build`. Result: `dist/desktop/Befundungstool-<version>-portable.exe`, a single file that needs no installation and no admin rights.
+- **Build:** `npm install --ignore-scripts`, then `npm run desktop:setup` (downloads the Electron binary once), then `npm run desktop:build`. Result: `dist/desktop/Befundungstool-<version>-portable.exe`, a single file that needs no installation and no admin rights. `npm run release:desktop` puts it into `dist/release/` as `befundungstool-v<version>-windows-portable.exe` with its SHA-256 in `SHA256SUMS.txt`.
 - **Start from the repository:** `npm run desktop` (builds the app, then opens the window).
 - **Same app inside:** the window runs the local launcher in-process on the fixed address `http://127.0.0.1:8790` (the browser launcher keeps 8788). AI requests go through its `/api` proxy, using the Windows proxy settings and certificate store. Only one window runs at a time; starting it again brings the open window to the front. If another program uses port 8790, the app shows an error and quits instead of switching ports, because settings, drafts, the encrypted key vault and downloaded models belong to that address.
 - **GPU status:** *Hilfe → GPU-Status* (or start with `--gpu-info`) shows whether WebGPU is available, the adapter (vendor, architecture, features, limits), cross-origin isolation, CPU threads and Chromium's GPU feature status. *Details kopieren* copies everything as JSON; *Chromium-GPU-Bericht* opens `chrome://gpu`.
@@ -74,6 +74,7 @@ npm install --ignore-scripts
 npm test                      # build + all checks (Node rule checks and Playwright browser checks)
 node scripts/test.cjs ui ai   # one group, filtered by file name
 npm run release               # dist/release: ZIP, standalone HTML, SHA256SUMS.txt
+npm run release:desktop       # the same plus a freshly built befundungstool-v<version>-windows-portable.exe
 npm run desktop:setup         # once: download the Electron binary (skipped by --ignore-scripts)
 npm run desktop               # build + desktop window
 npm run desktop:build         # dist/desktop/Befundungstool-<version>-portable.exe

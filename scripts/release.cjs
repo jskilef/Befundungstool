@@ -1,13 +1,30 @@
 'use strict';
 // Builds dist/release/: befundungstool-v<VERSION>.zip (explicit allow-list), the standalone HTML,
-// and SHA256SUMS.txt. Node built-ins only. Usage: node scripts/release.cjs [outDir]
+// and SHA256SUMS.txt. Node built-ins only. Usage: node scripts/release.cjs [outDir] [--desktop]
+// --desktop also builds the Windows portable exe (electron-builder) and adds it with its checksum.
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const crypto = require('crypto');
+const { spawnSync } = require('child_process');
 const { build } = require('./build.cjs');
 
 const root = path.join(__dirname, '..');
+const desktopName = version => `befundungstool-v${version}-windows-portable.exe`;
+
+// Builds the portable exe from the app that release() has just built, so a stale exe never ships.
+function buildDesktop(version) {
+  const builder = path.join(root, 'node_modules', 'electron-builder', 'cli.js');
+  if (!fs.existsSync(builder) || !fs.existsSync(path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe'))) {
+    throw new Error('The desktop build needs electron-builder and the Electron binary: run "npm install --ignore-scripts" and "npm run desktop:setup".');
+  }
+  const exe = path.join(root, 'dist', 'desktop', `Befundungstool-${version}-portable.exe`);
+  fs.rmSync(exe, { force: true });
+  const result = spawnSync(process.execPath, [builder, '--win', 'portable', '--publish', 'never'], { cwd: root, stdio: 'inherit' });
+  if (result.status !== 0) throw new Error('electron-builder failed');
+  if (!fs.existsSync(exe)) throw new Error('Portable exe missing after the build: ' + path.relative(root, exe));
+  return exe;
+}
 
 // [path in archive, source path]. Adding a source file does not add it to the release.
 function releaseFiles() {
@@ -91,7 +108,8 @@ function unzip(buffer) {
   return out;
 }
 
-function release(outDir = path.join(root, 'dist', 'release')) {
+// options.desktop adds the Windows exe; options.buildDesktop replaces the electron-builder run (tests).
+function release(outDir = path.join(root, 'dist', 'release'), { desktop = false, buildDesktop: buildExe = buildDesktop } = {}) {
   const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   if (pkg.version !== version) throw new Error(`VERSION ${version} does not match package.json ${pkg.version}`);
@@ -115,12 +133,29 @@ function release(outDir = path.join(root, 'dist', 'release')) {
     fs.writeFileSync(path.join(outDir, name), data);
     sums.push(crypto.createHash('sha256').update(data).digest('hex') + '  ' + name);
   }
+  // Without --desktop, an exe from an earlier run of this version no longer matches the new HTML or
+  // SHA256SUMS.txt, so it is removed rather than left looking like part of the release.
+  const exeName = desktopName(version);
+  fs.rmSync(path.join(outDir, exeName), { force: true });
+  if (desktop) {
+    const exe = buildExe(version);
+    fs.copyFileSync(exe, path.join(outDir, exeName));
+    sums.push(crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, exeName))).digest('hex') + '  ' + exeName);
+    outputs[exeName] = null;
+  }
   fs.writeFileSync(path.join(outDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n');
   return { version, outDir, files: entries.map(([name]) => name), outputs: Object.keys(outputs) };
 }
 
 if (require.main === module) {
-  const result = release(process.argv[2] && path.resolve(process.argv[2]));
+  const args = process.argv.slice(2);
+  const unknown = args.filter(arg => arg.startsWith('-') && arg !== '--desktop');
+  if (unknown.length) {
+    console.error('Unknown option: ' + unknown.join(' ') + ' (use --desktop)');
+    process.exit(2);
+  }
+  const outArg = args.find(arg => !arg.startsWith('-'));
+  const result = release(outArg && path.resolve(outArg), { desktop: args.includes('--desktop') });
   console.log(`Release ${result.version}: ${result.files.length} files -> ${path.relative(root, result.outDir)} (${result.outputs.join(', ')}, SHA256SUMS.txt)`);
 }
 

@@ -17,6 +17,7 @@ npm test                   # build + all tests (tests/engine, then tests/ui)
 node scripts/test.cjs ui undo   # one group, filtered by file name
 npm start                  # build + launcher on http://127.0.0.1:8788
 npm run release            # dist/release/ (ZIP, HTML, SHA256SUMS)
+npm run release:desktop    # same + freshly built windows-portable.exe in SHA256SUMS (needs desktop:setup)
 npm run desktop:setup      # once: Electron binary (npm install --ignore-scripts skips it)
 npm run desktop            # build + Electron window (desktop/main.cjs)
 npm run desktop:build      # dist/desktop/Befundungstool-<version>-portable.exe (unsigned)
@@ -46,7 +47,7 @@ Playwright browsers live in `.playwright-browsers/` (gitignored, copied from Rep
 | `server/local-server.cjs` | Optional loopback launcher and `/api` proxy (session token, origin/host checks) |
 | `desktop/` | Optional Windows app (Electron): `main.cjs` (lifecycle, in-process launcher on 127.0.0.1:8790, window hardening, menu), `policy.cjs` (origin/link/permission rules, Electron-free for engine tests), `gpu.cjs` (WebGPU switches, GPU-Status diagnostics). Packaging config: `build` in `package.json` |
 | `scripts/build.cjs` | Inlines everything into one HTML file; slot order = global dependency order |
-| `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/` |
+| `scripts/release.cjs` | Allow-listed release ZIP + standalone HTML + SHA256SUMS in `dist/release/`; `--desktop` adds a freshly built portable exe (a plain run removes a same-version exe left from an earlier `--desktop` run) |
 | `licenses/`, `THIRD_PARTY_NOTICES.md` | Upstream license texts for optional runtimes/models; re-review when versions change |
 | `tests/engine/` | Node-only rule/model checks; `tests/ui/` browser checks (plain Node + Playwright); `tests/desktop/` Electron checks via Playwright `_electron` (`tests/helpers/desktop.cjs` launches with a free port and a temporary data folder); `tests/helpers/` shared fixtures (`ui.cjs` opens the settings sheet, `config-file.cjs` saves/decrypts the configuration) |
 | `docs/` | Module docs and the radnote reference docs (AUDIT, TERMINOLOGY, CLINICAL_NOTICE, FLUENCY_DIRECT) |

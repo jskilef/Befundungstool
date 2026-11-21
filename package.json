@@ -11,6 +11,7 @@
     "build": "node scripts/build.cjs",
     "start": "node scripts/build.cjs && node server/local-server.cjs",
     "release": "node scripts/release.cjs",
+    "release:desktop": "node scripts/release.cjs --desktop",
     "test": "node scripts/test.cjs",
     "test:engine": "node scripts/test.cjs engine",
     "test:ui": "node scripts/test.cjs ui",
