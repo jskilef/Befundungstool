@@ -7,8 +7,10 @@ name: Desktop app
 on:
   workflow_dispatch:
   pull_request:
+  # Branches are checked through their pull request; push covers main and release tags only, so a
+  # push to an open pull request does not start the same run twice.
   push:
-    branches: [main, 'desktop-*']
+    branches: [main]
     tags: ['v*']
 
 permissions:
@@ -30,8 +32,10 @@ jobs:
           - { name: macOS, os: macos-latest }
           - { name: Linux, os: ubuntu-latest }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -53,7 +57,7 @@ jobs:
         run: xvfb-run -a node scripts/test.cjs desktop
       - name: Build packages
         run: node scripts/release.cjs --desktop
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-${{ runner.os }}
           if-no-files-found: error
@@ -67,13 +71,15 @@ jobs:
     needs: package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: ZIP and standalone HTML
         run: node scripts/release.cjs
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
           merge-multiple: true
@@ -85,7 +91,7 @@ jobs:
           sha256sum -- * > SHA256SUMS.txt.new
           mv SHA256SUMS.txt.new SHA256SUMS.txt
           cat SHA256SUMS.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: befundungstool-release
           path: dist/release
