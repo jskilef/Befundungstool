@@ -28,23 +28,28 @@ for (const line of fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').tri
 }
 assert(files.get('befundungstool.html').toString().includes(`content="${version}"`));
 const exeName = `befundungstool-v${version}-windows-portable.exe`;
-assert(!fs.existsSync(path.join(out, exeName)), 'no desktop exe without --desktop');
+const appImageName = `befundungstool-v${version}-linux-x86_64.AppImage`;
+assert(!fs.existsSync(path.join(out, exeName)), 'no desktop package without --desktop');
 
-// --desktop: the freshly built exe (synthetic stand-in for electron-builder here) is copied and checksummed.
-const fakeExe = path.join(out, 'synthetic-build.exe');
-fs.writeFileSync(fakeExe, Buffer.from('MZ synthetic portable exe'));
+// --desktop: the freshly built packages (synthetic stand-ins for electron-builder) are copied and checksummed.
+const builds = fs.mkdtempSync(path.join(os.tmpdir(), 'bt-desktop-build-'));
+const fakes = [[exeName, 'MZ synthetic portable exe'], [appImageName, 'ELF synthetic AppImage']].map(([name, body]) => { fs.writeFileSync(path.join(builds, name), body); return path.join(builds, name); });
 const built = [];
-const desktop = R.release(out, { desktop: true, buildDesktop: v => { built.push(v); return fakeExe; } });
+const desktop = R.release(out, { desktop: true, buildDesktop: v => { built.push(v); return fakes; } });
 assert.deepEqual(built, [version], 'desktop build runs once for this version');
-assert(desktop.outputs.includes(exeName));
-assert(fs.readFileSync(path.join(out, exeName)).equals(fs.readFileSync(fakeExe)));
+assert(desktop.outputs.includes(exeName) && desktop.outputs.includes(appImageName));
+for (const fake of fakes) assert(fs.readFileSync(path.join(out, path.basename(fake))).equals(fs.readFileSync(fake)));
 const sums = fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').trim().split('\n').map(line => line.split(/\s+/));
-assert.deepEqual(sums.map(([, name]) => name), [zipName, `befundungstool-v${version}.html`, exeName]);
-assert.equal(sums[2][0], crypto.createHash('sha256').update(fs.readFileSync(fakeExe)).digest('hex'));
+assert.deepEqual(sums.map(([, name]) => name), [zipName, `befundungstool-v${version}.html`, exeName, appImageName]);
+assert.equal(sums[3][0], crypto.createHash('sha256').update(fs.readFileSync(fakes[1])).digest('hex'));
+const strange = path.join(builds, 'Befundungstool Setup.exe');
+fs.writeFileSync(strange, 'x');
+assert.throws(() => R.release(out, { desktop: true, buildDesktop: () => [strange] }), /Unexpected desktop package name/);
 
-// A later release without --desktop removes the now outdated exe instead of leaving it unlisted.
+// A later release without --desktop removes the now outdated packages instead of leaving them unlisted.
 R.release(out);
-assert(!fs.existsSync(path.join(out, exeName)), 'stale exe removed');
-assert(!fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8').includes('.exe'));
+assert(!fs.existsSync(path.join(out, exeName)) && !fs.existsSync(path.join(out, appImageName)), 'stale packages removed');
+assert(!/\.(exe|AppImage)/.test(fs.readFileSync(path.join(out, 'SHA256SUMS.txt'), 'utf8')));
 fs.rmSync(out, { recursive: true, force: true });
-console.log('Release: ZIP-Rundlauf, Positivliste, Prüfsummen, Versionsabgleich und Desktop-Exe bestanden.');
+fs.rmSync(builds, { recursive: true, force: true });
+console.log('Release: ZIP-Rundlauf, Positivliste, Prüfsummen, Versionsabgleich und Desktop-Pakete bestanden.');

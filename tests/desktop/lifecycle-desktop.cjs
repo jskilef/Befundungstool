@@ -50,7 +50,7 @@ function run(env, { killAfterMs = 20000, until } = {}) {
   // --safe-gpu: no WebGPU/blocklist switches, the app still runs.
   const safe = await launchDesktop({ args: ['--safe-gpu'] });
   try {
-    const switches = await safe.app.evaluate(({ app }) => ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu'].filter(name => app.commandLine.hasSwitch(name)));
+    const switches = await safe.app.evaluate(({ app }) => ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', 'enable-features'].filter(name => app.commandLine.hasSwitch(name)));
     assert.deepEqual(switches, []);
     assert.equal(await safe.page.evaluate(() => window.crossOriginIsolated), true);
     console.log(`--safe-gpu: navigator.gpu=${await safe.page.evaluate(() => 'gpu' in navigator)}`);
@@ -59,8 +59,8 @@ function run(env, { killAfterMs = 20000, until } = {}) {
   }
   const full = await launchDesktop();
   try {
-    const switches = await full.app.evaluate(({ app }) => ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', 'disable-background-networking'].filter(name => app.commandLine.hasSwitch(name)));
-    assert.deepEqual(switches, ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', 'disable-background-networking']);
+    const switches = await full.app.evaluate(({ app }) => ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', 'disable-background-networking'].filter(name => app.commandLine.hasSwitch(name)).concat(app.commandLine.getSwitchValue('enable-features').split(',').filter(Boolean).map(f => 'feature:' + f)));
+    assert.deepEqual(switches, ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', 'disable-background-networking', ...(process.platform === 'linux' ? ['feature:Vulkan'] : [])]);
   } finally {
     await full.close();
   }

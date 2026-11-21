@@ -1,5 +1,5 @@
 'use strict';
-// Optional Windows desktop app: Electron window around the loopback launcher (server/local-server.cjs).
+// Optional desktop app (Windows, macOS, Linux): Electron window around the loopback launcher (server/local-server.cjs).
 // The launcher runs in this process on a fixed port, so the app gets the same session token, /api proxy
 // and cross-origin isolation headers as `npm start`, without any change in src/. The bundled Chromium
 // does not read Chrome/Edge policies, and the switches in gpu.cjs turn on WebGPU despite the blocklist.
@@ -17,6 +17,7 @@ const has = flag => process.argv.includes(flag);
 const SAFE_GPU = has('--safe-gpu');
 const DEVTOOLS = has('--devtools');
 const GPU_INFO_AT_START = has('--gpu-info');
+const MAC = process.platform === 'darwin';
 const APP_ROOT = path.join(__dirname, '..', 'dist');
 const ICON = path.join(APP_ROOT, 'icons', 'icon-512.png');
 
@@ -32,20 +33,20 @@ const german = () => /^de\b/i.test(app.getLocale());
 const text = (de, en) => (german() ? de : en);
 
 // ---- Before ready: GPU switches, sandbox, no background traffic -------------------------------------
-const switches = gpu.applyGpuSwitches(app, { safe: SAFE_GPU });
+const switches = gpu.applyGpuSwitches(app, { safe: SAFE_GPU, platform: process.platform });
 app.enableSandbox();
 // The core editor must stay silent until the user picks a provider or model. Electron has no updater or
 // crash upload unless started; this switch also turns off Chromium's remaining background fetches.
 app.commandLine.appendSwitch('disable-background-networking');
-app.setAppUserModelId('befundungstool');
+if (process.platform === 'win32') app.setAppUserModelId('befundungstool');
 
 function fail(reason) {
   const port = `127.0.0.1:${PORT}`;
   const messages = {
     EADDRINUSE: [`Port ${port} wird bereits von einem anderen Programm verwendet. Beenden Sie dieses Programm und starten Sie Befundungstool erneut.`,
       `Port ${port} is already used by another program. Close that program and start Befundungstool again.`],
-    EACCES: [`Windows verweigert den Zugriff auf Port ${port} (z. B. reservierter Portbereich). Bitte wenden Sie sich an Ihre IT.`,
-      `Windows denied access to port ${port} (for example a reserved port range). Please contact your IT department.`],
+    EACCES: [`Das Betriebssystem verweigert den Zugriff auf Port ${port} (z. B. reservierter Portbereich unter Windows). Bitte wenden Sie sich an Ihre IT.`,
+      `The operating system denied access to port ${port} (for example a reserved port range on Windows). Please contact your IT department.`],
     MISSING: ['Die App-Dateien fehlen (befundungstool.html). Bitte "npm run build" ausführen oder die App neu installieren.',
       'The app files are missing (befundungstool.html). Run "npm run build" or reinstall the app.']
   };
@@ -58,7 +59,7 @@ function fail(reason) {
 
 function startServer() {
   if (!fs.existsSync(path.join(APP_ROOT, 'befundungstool.html'))) return Promise.reject(Object.assign(new Error('missing'), { code: 'MISSING' }));
-  // Provider requests go through Chromium's network stack instead of Node's fetch: it uses the Windows
+  // Provider requests go through Chromium's network stack instead of Node's fetch: it uses the system
   // proxy settings and certificate store, which managed (hospital) networks with TLS inspection require.
   const instance = createServer({ root: APP_ROOT, upstreamFetch: (url, init) => net.fetch(url, { ...init, credentials: 'omit', bypassCustomProtocolHandlers: true }) });
   return new Promise((resolve, reject) => {
@@ -124,13 +125,14 @@ function openGpuReport() {
 function showAbout() {
   dialog.showMessageBox(mainWindow, {
     type: 'info', title: 'Befundungstool', message: `Befundungstool ${app.getVersion()}`, buttons: ['OK'], noLink: true,
-    detail: text(`Desktop-App (Electron ${process.versions.electron}). Berichte, Einstellungen und Modelle bleiben auf diesem PC:\n${app.getPath('userData')}\n\nMIT-Lizenz. Kein Medizinprodukt: Befunde immer ärztlich prüfen.`,
-      `Desktop app (Electron ${process.versions.electron}). Reports, settings and models stay on this PC:\n${app.getPath('userData')}\n\nMIT license. Not a medical device: always review reports clinically.`)
+    detail: text(`Desktop-App (Electron ${process.versions.electron}). Berichte, Einstellungen und Modelle bleiben auf diesem Computer:\n${app.getPath('userData')}\n\nMIT-Lizenz. Kein Medizinprodukt: Befunde immer ärztlich prüfen.`,
+      `Desktop app (Electron ${process.versions.electron}). Reports, settings and models stay on this computer:\n${app.getPath('userData')}\n\nMIT license. Not a medical device: always review reports clinically.`)
   });
 }
 
-// No Reload entry (it would discard unsaved report text) and no Edit roles (Ctrl+Z belongs to the
-// app's own undo). Windows handles copy/paste shortcuts without menu roles.
+// No Reload entry (it would discard unsaved report text) and no Undo/Redo roles (Ctrl/Cmd+Z belongs to
+// the app's own undo). Windows and Linux handle copy/paste shortcuts without menu roles; macOS needs
+// Cut/Copy/Paste/Select All in an Edit menu for Cmd+X/C/V/A to work.
 function buildMenu() {
   const view = [
     { role: 'zoomIn', label: text('Vergrößern', 'Zoom in') },
@@ -140,14 +142,39 @@ function buildMenu() {
     { role: 'togglefullscreen', label: text('Vollbild', 'Full screen') }
   ];
   if (DEVTOOLS) view.push({ type: 'separator' }, { role: 'toggleDevTools', label: text('Entwicklertools', 'Developer tools') });
+  const about = { id: 'about', label: text('Über Befundungstool', 'About Befundungstool'), click: showAbout };
+  const help = { label: text('&Hilfe', '&Help'), submenu: [
+    { id: 'gpu-status', label: text('GPU-Status', 'GPU status'), click: () => showGpuStatus().catch(() => {}) },
+    ...(MAC ? [] : [{ type: 'separator' }, about])
+  ] };
+  if (!MAC) {
+    return Menu.buildFromTemplate([
+      { label: text('&Datei', '&File'), submenu: [{ role: 'quit', label: text('Beenden', 'Quit') }] },
+      { label: text('&Ansicht', '&View'), submenu: view },
+      help
+    ]);
+  }
   return Menu.buildFromTemplate([
-    { label: text('&Datei', '&File'), submenu: [{ role: 'quit', label: text('Beenden', 'Quit') }] },
-    { label: text('&Ansicht', '&View'), submenu: view },
-    { label: text('&Hilfe', '&Help'), submenu: [
-      { id: 'gpu-status', label: text('GPU-Status', 'GPU status'), click: () => showGpuStatus().catch(() => {}) },
+    { label: 'Befundungstool', submenu: [
+      about, { type: 'separator' },
+      { role: 'hide', label: text('Befundungstool ausblenden', 'Hide Befundungstool') },
+      { role: 'hideOthers', label: text('Andere ausblenden', 'Hide Others') },
+      { role: 'unhide', label: text('Alle einblenden', 'Show All') },
       { type: 'separator' },
-      { id: 'about', label: text('Über Befundungstool', 'About Befundungstool'), click: showAbout }
-    ] }
+      { role: 'quit', label: text('Befundungstool beenden', 'Quit Befundungstool') }
+    ] },
+    { label: text('Bearbeiten', 'Edit'), submenu: [
+      { role: 'cut', label: text('Ausschneiden', 'Cut') },
+      { role: 'copy', label: text('Kopieren', 'Copy') },
+      { role: 'paste', label: text('Einfügen', 'Paste') },
+      { role: 'selectAll', label: text('Alles auswählen', 'Select All') }
+    ] },
+    { label: text('Darstellung', 'View'), submenu: view },
+    { label: text('Fenster', 'Window'), submenu: [
+      { role: 'minimize', label: text('Im Dock ablegen', 'Minimize') },
+      { role: 'close', label: text('Fenster schließen', 'Close Window') }
+    ] },
+    help
   ]);
 }
 
@@ -184,13 +211,15 @@ function main() {
   // One instance per data folder: two windows would fight over the port and the stored drafts.
   if (!app.requestSingleInstanceLock()) return app.quit();
   app.on('second-instance', () => {
-    if (!mainWindow) return;
+    if (!mainWindow) return server && createWindow();
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
   });
   app.on('web-contents-created', (event, contents) => harden(contents));
-  app.on('window-all-closed', () => app.quit());
+  // macOS convention: closing the window keeps the app in the Dock; clicking the Dock icon reopens it.
+  app.on('window-all-closed', () => { if (!MAC) app.quit(); });
+  app.on('activate', () => { if (!mainWindow && server) createWindow(); });
   app.on('will-quit', () => { server?.closeAllConnections(); server?.close(); });
   app.whenReady().then(async () => {
     configureSession(session.defaultSession);

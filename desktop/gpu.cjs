@@ -5,11 +5,17 @@
 
 const GPU_SWITCHES = ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu'];
 
+// Chromium's WebGPU on Linux runs on Vulkan, which it does not use by default there.
+const LINUX_FEATURES = 'Vulkan';
+
 // Must run before app.whenReady(). `--safe-gpu` keeps Chromium's defaults for broken drivers.
-function applyGpuSwitches(app, { safe }) {
+// Returns the applied switches as "name" or "name=value" (shown in the GPU status).
+function applyGpuSwitches(app, { safe, platform = process.platform }) {
   if (safe) return [];
   for (const name of GPU_SWITCHES) app.commandLine.appendSwitch(name);
-  return GPU_SWITCHES.slice();
+  if (platform !== 'linux') return GPU_SWITCHES.slice();
+  app.commandLine.appendSwitch('enable-features', LINUX_FEATURES);
+  return [...GPU_SWITCHES, 'enable-features=' + LINUX_FEATURES];
 }
 
 // Runs in the app page (main world) via executeJavaScript: no preload or exposed API is needed.

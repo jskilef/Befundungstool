@@ -47,7 +47,7 @@ const { configureAi } = require('../helpers/ui.cjs');
     assert(line, 'GPU info printed');
     const info = JSON.parse(line.slice('GPU-INFO '.length));
     assert.equal(info.mode, 'webgpu');
-    assert.deepEqual(info.switches, ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu']);
+    assert.deepEqual(info.switches, ['enable-unsafe-webgpu', 'ignore-gpu-blocklist', 'force_high_performance_gpu', ...(process.platform === 'linux' ? ['enable-features=Vulkan'] : [])]);
     assert.equal(info.crossOriginIsolated, true);
     assert.equal(info.webgpu.available, true);
     assert.equal(typeof info.featureStatus.webgpu, 'string');

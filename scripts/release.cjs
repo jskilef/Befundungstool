@@ -1,7 +1,8 @@
 'use strict';
 // Builds dist/release/: befundungstool-v<VERSION>.zip (explicit allow-list), the standalone HTML,
 // and SHA256SUMS.txt. Node built-ins only. Usage: node scripts/release.cjs [outDir] [--desktop]
-// --desktop also builds the Windows portable exe (electron-builder) and adds it with its checksum.
+// --desktop also builds the desktop packages this operating system can produce (Windows portable exe,
+// macOS dmg, Linux deb/AppImage via electron-builder) and adds them with their checksums.
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -10,20 +11,22 @@ const { spawnSync } = require('child_process');
 const { build } = require('./build.cjs');
 
 const root = path.join(__dirname, '..');
-const desktopName = version => `befundungstool-v${version}-windows-portable.exe`;
+// Desktop artifact names come from the electron-builder config: befundungstool-v<version>-<os>-<variant>.<ext>
+const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DESKTOP_ARTIFACT = version => new RegExp(`^befundungstool-v${escapeRegExp(version)}-(windows|macos|linux)-[A-Za-z0-9_.-]+\\.(exe|dmg|deb|AppImage)$`);
+const desktopArtifacts = (dir, version) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter(name => DESKTOP_ARTIFACT(version).test(name)).sort() : []);
 
-// Builds the portable exe from the app that release() has just built, so a stale exe never ships.
+// Builds the packages from the app that release() has just built, so a stale package never ships.
 function buildDesktop(version) {
   const builder = path.join(root, 'node_modules', 'electron-builder', 'cli.js');
-  if (!fs.existsSync(builder) || !fs.existsSync(path.join(root, 'node_modules', 'electron', 'dist', 'electron.exe'))) {
-    throw new Error('The desktop build needs electron-builder and the Electron binary: run "npm install --ignore-scripts" and "npm run desktop:setup".');
-  }
-  const exe = path.join(root, 'dist', 'desktop', `Befundungstool-${version}-portable.exe`);
-  fs.rmSync(exe, { force: true });
-  const result = spawnSync(process.execPath, [builder, '--win', 'portable', '--publish', 'never'], { cwd: root, stdio: 'inherit' });
+  if (!fs.existsSync(builder)) throw new Error('The desktop build needs electron-builder: run "npm install --ignore-scripts".');
+  const out = path.join(root, 'dist', 'desktop');
+  for (const name of desktopArtifacts(out, version)) fs.rmSync(path.join(out, name), { force: true });
+  const result = spawnSync(process.execPath, [builder, '--publish', 'never'], { cwd: root, stdio: 'inherit' });
   if (result.status !== 0) throw new Error('electron-builder failed');
-  if (!fs.existsSync(exe)) throw new Error('Portable exe missing after the build: ' + path.relative(root, exe));
-  return exe;
+  const built = desktopArtifacts(out, version);
+  if (!built.length) throw new Error('No desktop package found in dist/desktop after the build.');
+  return built.map(name => path.join(out, name));
 }
 
 // [path in archive, source path]. Adding a source file does not add it to the release.
@@ -108,7 +111,7 @@ function unzip(buffer) {
   return out;
 }
 
-// options.desktop adds the Windows exe; options.buildDesktop replaces the electron-builder run (tests).
+// options.desktop adds the desktop packages; options.buildDesktop replaces the electron-builder run (tests).
 function release(outDir = path.join(root, 'dist', 'release'), { desktop = false, buildDesktop: buildExe = buildDesktop } = {}) {
   const version = fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim();
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -133,15 +136,17 @@ function release(outDir = path.join(root, 'dist', 'release'), { desktop = false,
     fs.writeFileSync(path.join(outDir, name), data);
     sums.push(crypto.createHash('sha256').update(data).digest('hex') + '  ' + name);
   }
-  // Without --desktop, an exe from an earlier run of this version no longer matches the new HTML or
-  // SHA256SUMS.txt, so it is removed rather than left looking like part of the release.
-  const exeName = desktopName(version);
-  fs.rmSync(path.join(outDir, exeName), { force: true });
+  // Desktop packages from an earlier run of this version no longer match the new HTML or SHA256SUMS.txt,
+  // so they are removed rather than left looking like part of the release.
+  for (const name of desktopArtifacts(outDir, version)) fs.rmSync(path.join(outDir, name), { force: true });
   if (desktop) {
-    const exe = buildExe(version);
-    fs.copyFileSync(exe, path.join(outDir, exeName));
-    sums.push(crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, exeName))).digest('hex') + '  ' + exeName);
-    outputs[exeName] = null;
+    for (const source of buildExe(version)) {
+      const name = path.basename(source);
+      if (!DESKTOP_ARTIFACT(version).test(name)) throw new Error('Unexpected desktop package name: ' + name);
+      fs.copyFileSync(source, path.join(outDir, name));
+      sums.push(crypto.createHash('sha256').update(fs.readFileSync(path.join(outDir, name))).digest('hex') + '  ' + name);
+      outputs[name] = null;
+    }
   }
   fs.writeFileSync(path.join(outDir, 'SHA256SUMS.txt'), sums.join('\n') + '\n');
   return { version, outDir, files: entries.map(([name]) => name), outputs: Object.keys(outputs) };
