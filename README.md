@@ -29,6 +29,15 @@ Optional. On some PCs the installed Chrome or Edge blocks WebGPU (IT policies su
 - **Graphics problems:** start with `--safe-gpu` (Windows: a shortcut to the `.exe` with `--safe-gpu`; macOS: `open -a Befundungstool --args --safe-gpu`; Linux: `befundungstool --safe-gpu`). This keeps Chromium's GPU defaults and the blocklist, so WebGPU may be unavailable. `--disable-gpu` turns GPU acceleration off completely.
 - **Data stays on this computer:** everything the browser version keeps in browser storage is kept in `%APPDATA%\Befundungstool` (Windows), `~/Library/Application Support/Befundungstool` (macOS) or `~/.config/Befundungstool` (Linux). The app has no updater and no crash reporting and makes no network requests until you choose an AI provider or a model. The microphone is the only device it can use, and only for offline dictation.
 
+### Phones and tablets
+
+Use the hosted site in the phone's browser (Chrome on Android, Safari on iPhone/iPad) and add it to the home screen: Chrome menu → *App installieren* / *Zum Startbildschirm hinzufügen*, Safari share menu → *Zum Home-Bildschirm*. It then opens full-screen like an app. There is no separate phone app: the phone's own browser is the runtime with the best WebGPU support there, while app wrappers would run in a web view with weaker support.
+
+- **Macros:** touch keyboards have no Tab key, so on phones and tablets *Space* also expands `.code` macros (`.pleura` + Space); the macro list shows "Leertaste". Tapping a macro inserts it into the active section. Placeholders (`[[…]]`) have no F2 jump on touch keyboards; select them by tapping.
+- **AI:** API providers are called directly from the browser (there is no local launcher on a phone), so the provider must allow browser requests. LM Studio on another computer is not reachable (loopback only). Browser models need a lot of memory: prefer the small presets; larger models may fail to load or run slowly. On iPhone and iPad the CPU path may stay single-threaded (Safari does not support the isolation mode the site uses), so use WebGPU models there.
+- **Dictation:** the microphone works over HTTPS after the browser's permission prompt; audio is handled as on the desktop (memory only, never stored or uploaded).
+- **Data:** settings, drafts and the key vault stay in that phone's browser, separate from other devices. Use de-identified text, as everywhere.
+
 ## Features
 
 **Writing reports**
