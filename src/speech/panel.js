@@ -19,6 +19,7 @@
     'Dictation model': 'Diktiermodell', 'Off': 'Aus',
     'Whisper small · CPU · ≈ 250 MB download': 'Whisper small · CPU · ≈ 250 MB Download',
     'Whisper large-v3-turbo · WebGPU ≈ 560 MB, CPU ≈ 1.1 GB · best medical terms': 'Whisper large-v3-turbo · WebGPU ≈ 560 MB, CPU ≈ 1,1 GB · beste Fachbegriffe',
+    'Whisper large-v3-turbo German (primeLine) · WebGPU ≈ 560 MB, CPU ≈ 1.1 GB · experimental': 'Whisper large-v3-turbo German (primeLine) · WebGPU ≈ 560 MB, CPU ≈ 1,1 GB · experimentell',
     'Local model folder…': 'Lokaler Modellordner…', 'Speech language': 'Sprache des Diktats',
     'German': 'Deutsch', 'English': 'Englisch',
     'Spoken formatting commands ("neuer Absatz", "neue Zeile")': 'Gesprochene Formatbefehle („neuer Absatz“, „neue Zeile“)',
@@ -56,7 +57,7 @@
     'This folder is not a Whisper model for Transformers.js (missing config.json).': 'Dieser Ordner ist kein Whisper-Modell für Transformers.js (config.json fehlt).',
     'No Whisper ONNX files (onnx/encoder_model…, onnx/decoder_model_merged…) in this folder.': 'Keine Whisper-ONNX-Dateien (onnx/encoder_model…, onnx/decoder_model_merged…) in diesem Ordner.'
   };
-  const MODELS = ['none', 'whisper-small', 'whisper-large-v3-turbo', SpeechWhisper.FOLDER];
+  const MODELS = ['none', 'whisper-small', 'whisper-large-v3-turbo', 'whisper-large-v3-turbo-german', SpeechWhisper.FOLDER];
   const DEFAULT_STATE = { model: 'none', language: 'de', commands: true };
   const MIC_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>';
 
@@ -114,6 +115,7 @@
         option('none', 'Off'),
         option('whisper-small', 'Whisper small · CPU · ≈ 250 MB download'),
         option('whisper-large-v3-turbo', 'Whisper large-v3-turbo · WebGPU ≈ 560 MB, CPU ≈ 1.1 GB · best medical terms'),
+        option('whisper-large-v3-turbo-german', 'Whisper large-v3-turbo German (primeLine) · WebGPU ≈ 560 MB, CPU ≈ 1.1 GB · experimental'),
         option(SpeechWhisper.FOLDER, 'Local model folder…')
       ]),
       language: node('select', { id: 'speechLanguage' }, [option('de', 'German'), option('en', 'English')]),

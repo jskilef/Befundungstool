@@ -81,6 +81,22 @@ What the numbers say:
 - **Parakeet is about 4× faster than Whisper turbo on CPU** in these runs (Chromium vs Node, so only indicative).
 - **Limits of this test:** both voices are TTS, Kerstin-medium is low quality, and the sentences are short. The model was itself trained on TTS of unknown voices, which may help or hurt here. These numbers say nothing about real dictation.
 
+## Whisper large-v3-turbo German, measured on the same audio
+
+After this check, `onnx-community/whisper-large-v3-turbo-german-ONNX` was added as an experimental preset at the user's request (2026-11-23). It is the ONNX conversion of `primeline/whisper-large-v3-turbo-german` (Apache-2.0), pinned to commit `7a86cb9d63ad2517468c15fdac7dc9bb6d2abaed`. Its file layout and sizes match our turbo preset, so it needs no runtime change.
+
+| System (q8, CPU, Transformers.js 3.8.1 in Node) | WER | Thorsten | Kerstin | Terms |
+| --- | --- | --- | --- | --- |
+| Whisper large-v3-turbo (existing preset) | 31.8 % | 33.6 % | 29.9 % | 24/64 |
+| Whisper large-v3-turbo German | 36.4 % | 34.6 % | 38.3 % | 24/64 |
+
+Observations:
+- One Thorsten clip lost almost all content: "Cholezystolithiasis ohne Zeichen einer Cholezystitis. Hepatosplenomegalie." came out as ",,Hepartos plenomegalie"". The pending-transcript review before *Einfügen* is the safeguard.
+- It writes "ss" for "ß" ("gross", "grösste").
+- WebGPU (q4f16) was not run here (no GPU); the CPU path works end to end.
+
+Hence the label "experimentell". Keep it only if it does better than turbo with real voices.
+
 ## Next steps, if we pursue it
 
 1. **Measure with real voices first.** Synthetic sentences read by real people on a real microphone, Whisper turbo (WebGPU q4f16 and CPU q8) against Parakeet base and DE-Med (fp16 on WebGPU, int8 on CPU). Only integrate if DE-Med clearly wins on terms.

@@ -103,10 +103,12 @@ function speechLike(seconds, amplitude = 0.3) {
 
   // Whisper presets are pinned (model revision and dtype per device).
   assert.equal(W.TRANSFORMERS_URL, 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
-  assert.deepEqual(Object.keys(W.PRESETS), ['whisper-small', 'whisper-large-v3-turbo']);
+  assert.deepEqual(Object.keys(W.PRESETS), ['whisper-small', 'whisper-large-v3-turbo', 'whisper-large-v3-turbo-german']);
   for (const p of Object.values(W.PRESETS)) assert.match(p.revision, /^[0-9a-f]{40}$/);
   assert.deepEqual(Object.keys(W.PRESETS['whisper-small'].devices), ['wasm'], 'small runs on CPU (measured)');
   assert.deepEqual(W.PRESETS['whisper-large-v3-turbo'].devices.webgpu, { encoder_model: 'q4f16', decoder_model_merged: 'q4f16' });
+  assert.deepEqual(W.PRESETS['whisper-large-v3-turbo-german'].devices, W.PRESETS['whisper-large-v3-turbo'].devices, 'German fine-tune uses the turbo file layout');
+  assert.equal(W.PRESETS['whisper-large-v3-turbo-german'].model, 'onnx-community/whisper-large-v3-turbo-german-ONNX');
   assert(W.WORKER_SOURCE.includes("import('" + W.TRANSFORMERS_URL + "')") && W.WORKER_SOURCE.includes('audio.fill(0)'));
 
   // Runner with a fake worker: device choice, audio transferred, progress, cancellation, model change.
