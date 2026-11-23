@@ -103,8 +103,9 @@ Offline dictation runs speech recognition in the browser with the same [Transfor
 | --- | --- | --- |
 | `onnx-community/whisper-small` | Conversion of [openai/whisper-small](https://huggingface.co/openai/whisper-small); OpenAI's Whisper code and weights are MIT. [Whisper license](licenses/whisper-LICENSE.txt). | [`36050c46d777d46dc4b5f43f6d90574fc38f8732`](https://huggingface.co/onnx-community/whisper-small/tree/36050c46d777d46dc4b5f43f6d90574fc38f8732) |
 | `onnx-community/whisper-large-v3-turbo` | Conversion of [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo); MIT. [Whisper license](licenses/whisper-LICENSE.txt). | [`360ebcde2559d60bb474678be3c1de9ef347d01a`](https://huggingface.co/onnx-community/whisper-large-v3-turbo/tree/360ebcde2559d60bb474678be3c1de9ef347d01a) |
+| `onnx-community/whisper-large-v3-turbo-german-ONNX` | Conversion of [primeline/whisper-large-v3-turbo-german](https://huggingface.co/primeline/whisper-large-v3-turbo-german) (Apache-2.0, [license](licenses/Apache-2.0.txt)), a German fine-tune of OpenAI Whisper (MIT, [Whisper license](licenses/whisper-LICENSE.txt)). | [`7a86cb9d63ad2517468c15fdac7dc9bb6d2abaed`](https://huggingface.co/onnx-community/whisper-large-v3-turbo-german-ONNX/tree/7a86cb9d63ad2517468c15fdac7dc9bb6d2abaed) |
 
-At inspection (2026-11-21) the `whisper-small` and `whisper-large-v3-turbo` conversion repositories carried no license metadata of their own; the MIT license above covers the original OpenAI weights, not a blanket clearance of the converted artifacts. No weights are redistributed. A local model folder chosen by the user keeps its own license.
+At inspection (2026-11-21; German turbo 2026-11-23) the `whisper-small`, `whisper-large-v3-turbo` and `whisper-large-v3-turbo-german-ONNX` conversion repositories carried no license metadata of their own; the licenses above cover the original weights (OpenAI MIT; primeLine Apache-2.0), not a blanket clearance of the converted artifacts. No weights are redistributed. A local model folder chosen by the user keeps its own license.
 
 ## Bundled font: Roboto
 

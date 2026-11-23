@@ -60,6 +60,7 @@ Sources:
     - a TDT decoding loop
   - Using Mediform's weights would also need a one-time NeMo→ONNX conversion that we would have to host or document.
 - **Verdict:** feasible, but a separate project. The realistic route is option C with CrispASR's native Parakeet (as RepDict does), or a self-converted ONNX folder loaded locally. **Not part of the first version.**
+- **Follow-up (2026-11-23):** the related `johannhartmann/parakeet_de_med` (decoder/joint-only fine-tune, encoder bit-identical to the base) was run in Chromium via `parakeet.js`. It works, but gains little over base Parakeet on synthetic speech and does not beat Whisper large-v3-turbo. See `PARAKEET_DE_MED_CHECK.md`.
 
 ## Recommendation
 

@@ -26,6 +26,12 @@
       model: 'onnx-community/whisper-large-v3-turbo', revision: '360ebcde2559d60bb474678be3c1de9ef347d01a',
       devices: { webgpu: { encoder_model: 'q4f16', decoder_model_merged: 'q4f16' }, wasm: Q8 },
       size: { webgpu: '≈ 560 MB', wasm: '≈ 1.1 GB' }
+    },
+    // German fine-tune by primeLine (Apache-2.0). Same file layout and sizes as the turbo conversion.
+    'whisper-large-v3-turbo-german': {
+      model: 'onnx-community/whisper-large-v3-turbo-german-ONNX', revision: '7a86cb9d63ad2517468c15fdac7dc9bb6d2abaed',
+      devices: { webgpu: { encoder_model: 'q4f16', decoder_model_merged: 'q4f16' }, wasm: Q8 },
+      size: { webgpu: '≈ 560 MB', wasm: '≈ 1.1 GB' }
     }
   };
   const FOLDER = 'folder';

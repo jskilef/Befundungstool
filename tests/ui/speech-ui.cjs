@@ -225,6 +225,13 @@ function wav(file, seconds, speech) {
       await page.reload();
       assert.equal(await page.inputValue('#speechModel'), 'whisper-small');
       assert.equal(await page.locator('#speechCommands').isChecked(), false);
+
+      // The German turbo fine-tune is offered and remembered like the other presets.
+      assert.equal(await page.locator('#speechModel option[value="whisper-large-v3-turbo-german"]').textContent(),
+        'Whisper large-v3-turbo German (primeLine) · WebGPU ≈ 560 MB, CPU ≈ 1,1 GB · experimentell');
+      await ui.setSetting(page, '#speechModel', 'whisper-large-v3-turbo-german');
+      await page.reload();
+      assert.equal(await page.inputValue('#speechModel'), 'whisper-large-v3-turbo-german');
       await ui.openSettings(page, 'general');
       await page.locator('#featureSpeech').uncheck();
       await ui.closeSettings(page);
