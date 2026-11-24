@@ -1,6 +1,6 @@
 'use strict';
-// "Befund kopieren" / .txt export layout: section headings in capitals (default) or as the fields are
-// named, and 0–3 blank lines between sections; remembered and part of the configuration file.
+// "Befund kopieren" / .txt export layout: section headings in capitals (default), as the fields are
+// named or left out, and 0–3 blank lines between sections; remembered and part of the configuration file.
 const { chromium } = require('@playwright/test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -73,6 +73,25 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     await ui.setSetting(page, '#featureMeta', true);
     assert.match(await copy(), /\nDatum: [^\n]*\n\n\n\nBefund \(MRT\)\nSynthetisch\.$/);
 
+    // No headings: only the section texts, same spacing, also after the study header and in the export.
+    await ui.openSettings(page, 'general');
+    assert.equal(await page.locator('#headingStyle option[value=none]').textContent(), 'Ohne Überschriften');
+    await page.selectOption('#headingStyle', 'none');
+    await page.selectOption('#sectionSpacing', '1');
+    await ui.closeSettings(page);
+    assert.match(await copy(), /\nDatum: [^\n]*\n\nSynthetisch\.$/);
+    await ui.setSetting(page, '#featureMeta', false);
+    await page.selectOption('#template', 'combined');
+    for (const [i, id] of ids.entries()) await page.locator('#' + id).fill(texts[i]);
+    assert.equal(await copy(), texts.join('\n\n'));
+    assert.equal(await exported(), texts.join('\n\n'));
+    await page.locator('#comparison').fill(' ');
+    assert.equal(await copy(), [0, 1, 3].map(i => texts[i]).join('\n\n'), 'empty sections still left out');
+    await ui.openSettings(page, 'general');
+    await page.selectOption('#headingStyle', 'asNamed');
+    await page.selectOption('#sectionSpacing', '3');
+    await ui.closeSettings(page);
+
     // Remembered after reload and saved in the configuration file.
     await page.reload();
     await stubClipboard();
@@ -81,7 +100,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../dist/befundungstool.htm
     assert.deepEqual((await saveConfiguration(page)).data.settings.copyFormat, { headings: 'asNamed', blankLines: 3 });
 
     assert.deepEqual(errors, []);
-    console.log('Kopierformat: Großbuchstaben als Standard, Überschriften wie benannt, 0–3 Leerzeilen, Export gleich, Speicherung und Konfigurationsdatei bestanden.');
+    console.log('Kopierformat: Großbuchstaben als Standard, Überschriften wie benannt oder ohne, 0–3 Leerzeilen, Export gleich, Speicherung und Konfigurationsdatei bestanden.');
   } finally {
     await browser.close();
   }
