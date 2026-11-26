@@ -109,7 +109,11 @@ html[data-theme=dark]{--md-sys-elevation-1:0 1px 2px rgb(0 0 0/.5),0 1px 3px 1px
 :root[data-palette][data-theme] .section{border-bottom-color:var(--md-sys-color-outline-variant)}
 :root[data-palette][data-theme] .section label{text-transform:none;letter-spacing:.1px;font-size:14px;line-height:20px;font-weight:500;color:var(--md-sys-color-on-surface)}
 :root[data-palette][data-theme] .section textarea{background:transparent;color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;letter-spacing:.5px;border-radius:0}
-:root[data-palette][data-theme] .section textarea:focus{box-shadow:-3px 0 var(--md-sys-color-primary)}
+/* The ported editor.css adds padding-left only on focus, which narrows the field and re-wraps the text.
+   Keep the same padding in both states and move the field into the gutter instead: the text stays aligned
+   with the heading and does not move; focus only shows the bar. */
+:root[data-palette][data-theme] .section textarea{padding-left:12px;margin-left:-12px;width:calc(100% + 12px)}
+:root[data-palette][data-theme] .section textarea:focus{padding-left:12px;box-shadow:-3px 0 var(--md-sys-color-primary)}
 :root[data-palette][data-theme] .section textarea::placeholder{color:var(--md-sys-color-on-surface-variant)}
 :root[data-palette][data-theme] :is(.toolbar,.template-control,.dictation-status){background:var(--md-sys-color-surface-container);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant)}
 :root[data-palette][data-theme] .meta,:root[data-palette][data-theme] .footer{border-color:var(--md-sys-color-outline-variant)}
@@ -204,13 +208,10 @@ html{--side-w:320px}html[data-sidebar-width=narrow]{--side-w:272px}html[data-sid
 :root[data-palette][data-theme] :is(.field-copy,.dictation-action,.freeze-action){color:var(--md-sys-color-on-surface-variant)}
 :root[data-palette][data-theme] .section:is(:hover,:focus-within) :is(.field-copy,.dictation-action,.freeze-action){color:var(--md-sys-color-primary)}
 :root[data-palette][data-theme] .freeze-help{display:none}
-/* Per-section AI switch: a low-emphasis filter chip while the section is sent, a filled (selected-looking) chip
-   when it is kept away from the AI, so that state stays visible without hovering. */
-:root[data-palette][data-theme] .ai-skip{min-height:32px;padding:0 12px;font-size:12px;line-height:16px;letter-spacing:.5px;border-radius:var(--md-sys-shape-corner-small);border:1px solid transparent;background:transparent;color:var(--md-sys-color-on-surface-variant)}
-:root[data-palette][data-theme] .section:is(:hover,:focus-within) .ai-skip[aria-checked=true]{color:var(--md-sys-color-primary)}
-:root[data-palette][data-theme] .ai-skip[aria-checked=false]{border-color:var(--md-sys-color-outline-variant);background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container)}
-:root[data-palette][data-theme] .ai-skip:hover{background:color-mix(in srgb,currentColor 8%,transparent)}
-:root[data-palette][data-theme] .ai-skip[aria-checked=false]:hover{background:color-mix(in srgb,var(--md-sys-color-on-tertiary-container) 8%,var(--md-sys-color-tertiary-container))}
+/* "Nicht an KI": read-only hint in the section heading; the setting itself lives in the template dialog. */
+:root[data-palette][data-theme] .ai-off-hint{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border-radius:var(--md-sys-shape-corner-small);background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);font-size:12px;line-height:16px;letter-spacing:.5px;font-weight:500}
+:root[data-palette][data-theme] .template-ai{display:flex;align-items:center;gap:8px;margin:4px 0 8px;font-weight:400}
+#templateDialog:not(.builtin-template) .builtin-template-hint,#templateDialog.builtin-template :is(.custom-template-hint,#addTemplateField){display:none}
 /* Inline AI suggestions and notes under a section. */
 :root[data-palette][data-theme] .ai-inline:empty{display:none}
 :root[data-palette][data-theme] .ai-inline{display:grid;gap:8px;margin-top:8px}
@@ -254,7 +255,7 @@ html{--side-w:320px}html[data-sidebar-width=narrow]{--side-w:272px}html[data-sid
 html[data-off~=builders] :is(.builder-control,.builder-area,.bar-divider){display:none!important}
 html[data-off~=dictation] :is(.dictation-action,.dictation-status){display:none!important}
 html[data-off~=meta] .meta{display:none!important}
-html[data-off~=ai] :is(#aiChipHost,#aiActionsHost,#aiBannerHost,.ai-inline,.ai-skip,#tabNotes,[data-sheet-tab=ai]){display:none!important}
+html[data-off~=ai] :is(#aiChipHost,#aiActionsHost,#aiBannerHost,.ai-inline,.ai-off-hint,.template-ai,#editTemplate[data-builtin],#tabNotes,[data-sheet-tab=ai]){display:none!important}
 html[data-off~=sidebar] .side{display:none!important}
 html[data-off~=speech] :is(.speech-host,.speech-inline,.speech-settings){display:none!important}
 html[data-side-hide~=macros] #macroPanel,html[data-side-hide~=shortcuts] #shortcutsPanel,html[data-side-hide~=notes] #tabNotes,html[data-side-single=true] .side-tabs{display:none!important}
