@@ -109,7 +109,11 @@ html[data-theme=dark]{--md-sys-elevation-1:0 1px 2px rgb(0 0 0/.5),0 1px 3px 1px
 :root[data-palette][data-theme] .section{border-bottom-color:var(--md-sys-color-outline-variant)}
 :root[data-palette][data-theme] .section label{text-transform:none;letter-spacing:.1px;font-size:14px;line-height:20px;font-weight:500;color:var(--md-sys-color-on-surface)}
 :root[data-palette][data-theme] .section textarea{background:transparent;color:var(--md-sys-color-on-surface);font-size:16px;line-height:24px;letter-spacing:.5px;border-radius:0}
-:root[data-palette][data-theme] .section textarea:focus{box-shadow:-3px 0 var(--md-sys-color-primary)}
+/* The ported editor.css adds padding-left only on focus, which narrows the field and re-wraps the text.
+   Keep the same padding in both states and move the field into the gutter instead: the text stays aligned
+   with the heading and does not move; focus only shows the bar. */
+:root[data-palette][data-theme] .section textarea{padding-left:12px;margin-left:-12px;width:calc(100% + 12px)}
+:root[data-palette][data-theme] .section textarea:focus{padding-left:12px;box-shadow:-3px 0 var(--md-sys-color-primary)}
 :root[data-palette][data-theme] .section textarea::placeholder{color:var(--md-sys-color-on-surface-variant)}
 :root[data-palette][data-theme] :is(.toolbar,.template-control,.dictation-status){background:var(--md-sys-color-surface-container);border-color:var(--md-sys-color-outline-variant);color:var(--md-sys-color-on-surface-variant)}
 :root[data-palette][data-theme] .meta,:root[data-palette][data-theme] .footer{border-color:var(--md-sys-color-outline-variant)}
