@@ -16,7 +16,7 @@ Without an AI provider selected, the app makes no network requests.
 **Writing reports**
 - Templates: structured, "Befund und Beurteilung", freestyle, and custom templates with named, reorderable fields and default text.
 - Macros: `.code` + Tab inserts text; word expansion (`re` + Space → `rechts `); categories, favorites, search; `[[placeholders]]` with F2.
-- Frozen text survives new reports; undo/redo (Ctrl/Cmd+Z, 200 steps); copy per field, copy report, export .txt (Ctrl/Cmd+S), print/PDF. Under gear → *Allgemein* → *Kopieren und Export*: section headings in capitals or as the fields are named, and 0–3 blank lines between sections. Empty sections are left out.
+- Frozen text survives new reports; undo/redo (Ctrl/Cmd+Z, 200 steps); copy per field, copy report, export .txt (Ctrl/Cmd+S), print/PDF. Under gear → *Allgemein* → *Kopieren und Export*: section headings in capitals, as the fields are named, or none, and 0–3 blank lines between sections. Empty sections are left out.
 - Optional draft saving on this device. Fluency Direct dictation compatibility mode ([details](docs/radnote/FLUENCY_DIRECT.md)).
 - **Offline dictation** ("Diktieren" in the report toolbar): Whisper runs in the browser. Choose a model under the gear icon → *Allgemein* → *Offline-Diktat*: Whisper small (CPU, ≈ 250 MB) or Whisper large-v3-turbo (WebGPU ≈ 560 MB, otherwise CPU ≈ 1.1 GB; much better medical terms), the experimental German fine-tune Whisper large-v3-turbo German by primeLine (same sizes), or a local model folder. Recordings last at most 30 s; the transcript appears as editable text under the section and is inserted only with *Einfügen*. "Neuer Absatz" / "neue Zeile" become paragraph and line breaks (switchable). Silence inserts nothing.
 
@@ -27,6 +27,7 @@ Without an AI provider selected, the app makes no network requests.
 - *Prüfen* (Review) and *Überarbeiten* (Revise) sit in the report toolbar. Notes appear directly under the section they refer to and in the *KI-Hinweise* tab (click a note to jump to its section). Revise shows a suggestion card under each changed section with a word diff: *Übernehmen*, *Anhängen*, *Bearbeiten* (edit the suggestion first) or *Verwerfen*. Nothing changes in the report until you choose; frozen text stays protected and every change can be undone.
 - Changes to numbers, units, sides, negation and uncertainty are outlined. Results are marked outdated when the report changes.
 - Providers: OpenAI, Google Gemini, **LM Studio** (your own GGUF models on this PC), any OpenAI-compatible API (enter the base URL from the provider's docs, e.g. `https://api.mistral.ai/v1`; `/chat/completions` is added), or in-browser models: WebLLM on WebGPU (Qwen3), Transformers.js on CPU (Qwen3, SmolLM2), experimental MedGemma, and your own ONNX/MLC model folders ([model files](docs/MODEL_DOWNLOADS.md)).
+- Each section heading has an *An KI* / *Nicht an KI* switch. Switched-off sections are never sent to the AI (fewer tokens; e.g. patient details stay in the editor). The choice is remembered for every report and saved in the configuration file.
 - Each custom template can carry *KI-Stilhinweise* (AI style notes). Review/Revise prompts are editable under *Erweiterte Einstellungen*; the defaults are German or English, following the report language (or the interface language).
 
 **Own GGUF models directly in the browser**

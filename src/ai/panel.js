@@ -39,7 +39,8 @@
     'The AI removed, reordered or merged headings in this section. Check it before applying.': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Vor der Übernahme prüfen.',
     'The AI removed, reordered or merged headings in this section. Apply anyway?': 'Die KI hat Überschriften in diesem Abschnitt entfernt, umgestellt oder zusammengelegt. Trotzdem übernehmen?',
     'Generated': 'Erstellt', 'Applied to the report.': 'In den Befund übernommen.',
-    'Enter a report first.': 'Zuerst einen Befund eingeben.', 'Choose an AI provider.': 'Einen KI-Anbieter wählen.',
+    'Enter a report first.': 'Zuerst einen Befund eingeben.', 'All sections with text are switched off for AI. Nothing was sent.': 'Alle Abschnitte mit Text sind für die KI ausgeschaltet. Es wurde nichts gesendet.',
+    'section not sent': 'Abschnitt nicht gesendet', 'sections not sent': 'Abschnitte nicht gesendet', 'Choose an AI provider.': 'Einen KI-Anbieter wählen.',
     'Enter the model ID.': 'Modell-ID eingeben.', 'Enter your API key.': 'API-Schlüssel eingeben.',
     'Enter a valid endpoint URL.': 'Eine gültige Endpunkt-Adresse eingeben.',
     'Use an endpoint without credentials, query parameters, or fragments.': 'Endpunkt ohne Zugangsdaten, Abfrageparameter oder Fragmente verwenden.',
@@ -539,7 +540,9 @@
     function snapshot(mode) {
       return {
         mode,
-        sections: bridge.getSections().map(s => ({ id: s.id, text: s.text, protected: s.protected })),
+        // Sections kept away from the AI are recorded without their text: the model never sees them,
+        // so editing them leaves a result current, while switching a section on or off makes it outdated.
+        sections: bridge.getSections().map(s => s.ai === false ? { id: s.id, ai: false } : { id: s.id, text: s.text, protected: s.protected }),
         template: bridge.getTemplate(),
         reportLanguage: settings.reportLanguage,
         provider: settings.provider,
@@ -551,8 +554,8 @@
     }
     const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     /* A result is current only while the complete request input is unchanged: every section, frozen
-       text, template, language, connection, model and prompt (the model saw all sections, so an edit
-       elsewhere can invalidate a suggestion). Sections changed by applying a suggestion from the same
+       text, template, language, connection, model and prompt (the model saw all sent sections, so an edit
+       elsewhere can invalidate a suggestion; sections switched off for AI count only by that switch). Sections changed by applying a suggestion from the same
        result are expected (`result.expected`, shared by the notes and the revision of one request),
        so several suggestions can be applied one after another without a warning. */
     function resultStale(result) {
@@ -713,8 +716,11 @@
       if (busy) return;
       const before = snapshot(mode);
       // Empty sections are not sent: models tend to invent content for them (seen with local fine-tunes).
-      const sections = bridge.getSections().filter(s => s.text.trim());
-      if (!sections.some(s => s.text.trim())) { setStatus('Enter a report first.', true); return; }
+      // Sections the user switched off for AI ("Nicht an KI") are never sent either.
+      const filled = bridge.getSections().filter(s => s.text.trim());
+      const sections = filled.filter(s => s.ai !== false);
+      const skipped = filled.length - sections.length;
+      if (!sections.length) { setStatus(skipped ? 'All sections with text are switched off for AI. Nothing was sent.' : 'Enter a report first.', true); return; }
       ui.rawBox.hidden = true;
       ui.raw.textContent = '';
       const controller = new AbortController();
@@ -761,7 +767,8 @@
         const proposals = mode === 'revise' ? revision.sections.filter(s => s.proposed !== s.original).length : 0;
         setStatus(changedMeanwhile ? 'Inputs changed during the request. Run the action again.' : mode === 'review' ? 'Review complete. Check the notes.' :
           proposals ? 'Revision complete. Check every change before applying it.' : 'Revision complete. No text changes proposed.', changedMeanwhile,
-          !changedMeanwhile && proposals ? ' (' + proposals + ' ' + t(proposals === 1 ? 'suggestion' : 'suggestions') + ')' : '');
+          (!changedMeanwhile && proposals ? ' (' + proposals + ' ' + t(proposals === 1 ? 'suggestion' : 'suggestions') + ')' : '') +
+          (skipped ? ' · ' + skipped + ' ' + t(skipped === 1 ? 'section not sent' : 'sections not sent') : ''));
         if (proposals) bridge.focusSection(revision.sections.find(s => s.proposed !== s.original).id, { scrollOnly: true });
       } catch (error) {
         if (mode === 'revise' && revision) revisionFailed = true;
