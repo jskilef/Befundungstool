@@ -19,7 +19,14 @@ const limits={...empty,macros:Array.from({length:1000},(_,i)=>({...macro,code:'m
 // Copy/export layout: headings in capitals, as named or left out, 0–3 blank lines; optional for older files.
 assert(C.validCopyFormat({headings:'asNamed',blankLines:0})&&C.validCopyFormat({headings:'upper',blankLines:3})&&C.validCopyFormat({headings:'none',blankLines:1}));
 for(const bad of [{headings:'lower',blankLines:1},{headings:'upper',blankLines:4},{headings:'upper',blankLines:1.5},{headings:'upper',blankLines:-1},{headings:'upper',blankLines:1,extra:true},null])assert(!C.validCopyFormat(bad));
-// Sections kept away from the AI: field ids, unique, bounded; optional for older files.
+// Sections kept away from the AI: per built-in template in settings.templateAi, `ai: false` on custom fields;
+// the earlier global settings.aiExcluded (field ids, unique, bounded) is still read from older files.
+assert(C.validTemplateAi({})&&C.validTemplateAi({combined:{excluded:['indication'],instructions:'Knapp.'},structured:{}}));
+for(const bad of [{'custom-x':{}},{combined:{excluded:['a','a']}},{combined:{instructions:'x'.repeat(20001)}},{combined:{extra:true}},{combined:null},[],null])assert(!C.validTemplateAi(bad));
+assert(C.validSettings({...settings,templateAi:{freestyle:{excluded:['freestyle']}}})&&!C.validSettings({...settings,templateAi:{chest:{excluded:'findings'}}}));
+const aiField={id:'custom-ai-t',name:'KI',fields:[{id:'custom-ai-f1',label:'Patient',defaultText:'',ai:false},{id:'custom-ai-f2',label:'Befund',defaultText:''}]};
+assert(C.validTemplates([aiField])&&!C.validTemplates([{...aiField,fields:[{...aiField.fields[0],ai:'no'}]}]));
+assert.deepEqual(C.parse({...backup,templates:[aiField],settings:{...settings,selectedTemplate:'structured'}}).templates[0].fields.map(f=>f.ai),[false,undefined],'the AI switch survives an import');
 assert(C.validAiExcluded([])&&C.validAiExcluded(['indication','custom-abc-1']));
 for(const bad of [['indication','indication'],[''],['a b'],['x'.repeat(101)],[1],Array.from({length:201},(_,i)=>'f'+i),'indication',null])assert(!C.validAiExcluded(bad));
 assert(C.validSettings({...settings,aiExcluded:['indication']})&&!C.validSettings({...settings,aiExcluded:['<id>']}));

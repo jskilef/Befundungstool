@@ -11,7 +11,7 @@ const newId = () => 'custom-import-' + (++counter);
 
 const settings = { language: 'de', theme: 'dark', builder: 'none', selectedTemplate: 'structured', saveDraft: false, macrosOpen: true, shortcutsOpen: false, settingsOpen: true, chestStyle: 'standard', chestAuto: true };
 const macro = { title: 'Rechts', code: 're', text: 'rechts', trigger: 'space', category: 'general', favorite: false };
-const template = { id: 'custom-t1', name: 'CT Abdomen', fields: [{ id: 'custom-f1', label: 'Befund', defaultText: 'Regelrecht.' }], aiInstructions: 'Knapp formulieren.' };
+const template = { id: 'custom-t1', name: 'CT Abdomen', fields: [{ id: 'custom-f0', label: 'Patient', defaultText: '', ai: false }, { id: 'custom-f1', label: 'Befund', defaultText: 'Regelrecht.' }], aiInstructions: 'Knapp formulieren.' };
 const ai = {
   provider: 'openai', reportLanguage: 'German',
   profiles: { openai: { endpoint: 'https://api.openai.com/v1/chat/completions', model: 'synthetic-model', apiKey: 'sk-synthetic-key' } }
